@@ -1,0 +1,9 @@
+#GUI values
+width.min=800
+hieght.min=600
+width.max=1080
+hieght.max=1920
+#
+# Monitored servers
+#bundleName=Class to use
+google=dea.monitor.checker.CheckUrl
