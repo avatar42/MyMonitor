@@ -2,9 +2,12 @@ package dea.monitor.checker;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -13,7 +16,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.KeyManagementException;
+import java.security.KeyStore;
 import java.security.KeyStoreException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -32,8 +37,11 @@ import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 
 import org.apache.commons.codec.binary.Base64;
@@ -66,9 +74,8 @@ import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 
-
 import dea.monitor.tools.HttpsVerifier;
-import dea.monitor.tools.InstallCert;
+import dea.monitor.tools.Utils;
 
 // needs keystore in working dir keytool -genkey -alias dea42.com -keyalg RSA -keystore keystorefile.store -keysize 2048
 /**
@@ -320,16 +327,103 @@ public class CheckUrl extends CheckBase {
 	protected void tryTlsPlusCertInstall(HttpURLConnection con, Exception e)
 			throws KeyManagementException, KeyStoreException,
 			NoSuchAlgorithmException, CertificateException, IOException {
-		if (httpsURL.getProtocol().equals("https")) {
+		if (httpsURL.getProtocol().equals("https") && keyFile != null) {
 			log.error("Trying to install cert as last final option", e);
 			int port = httpsURL.getPort();
 			if (port == -1)
 				port = httpsURL.getDefaultPort();
 
-			SSLSocketFactory sf = InstallCert.install(httpsURL.getHost(), port,
-					keyPass, keyFile);
-			if (sf != null)
-				HttpsURLConnection.setDefaultSSLSocketFactory(sf);
+			// SSLSocketFactory sf = install(httpsURL.getHost(), port, keyPass,
+			// keyFile);
+			char[] passphrase = keyPass.toCharArray();
+
+			File file = new File(keyFile);
+			if (file.isFile() == false) {
+				char SEP = File.separatorChar;
+				File dir = new File(System.getProperty("java.home") + SEP
+						+ "lib" + SEP + "security");
+				file = new File(dir, keyFile);
+				if (file.isFile() == false) {
+					file = new File(dir, "cacerts");
+				}
+			}
+			log.info("Loading KeyStore " + file + "...");
+			InputStream in = new FileInputStream(file);
+			KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+			try {
+				ks.load(in, passphrase);
+			} catch (Exception e1) {
+				log.error(keyPass, e1);
+			}
+			in.close();
+
+			SSLContext context = SSLContext.getInstance("TLS");
+			TrustManagerFactory tmf = TrustManagerFactory
+					.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+			tmf.init(ks);
+			X509TrustManager defaultTrustManager = (X509TrustManager) tmf
+					.getTrustManagers()[0];
+			SavingTrustManager tm = new SavingTrustManager(defaultTrustManager);
+			context.init(null, new TrustManager[] { tm }, null);
+			SSLSocketFactory factory = context.getSocketFactory();
+
+			log.info("Opening connection to " + httpsURL.getHost() + ":" + port
+					+ "...");
+			SSLSocket socket = (SSLSocket) factory.createSocket(
+					httpsURL.getHost(), port);
+			socket.setSoTimeout(10000);
+			try {
+				log.info("Starting SSL handshake...");
+				socket.startHandshake();
+				socket.close();
+				log.info("");
+				log.info("No errors, certificate is already trusted");
+			} catch (SSLException e1) {
+				log.error("", e1);
+
+				X509Certificate[] chain = tm.chain;
+				if (chain == null) {
+					log.info("Could not obtain server certificate chain");
+					factory = null;
+				} else {
+
+					log.info("");
+					log.info("Server sent " + chain.length + " certificate(s):");
+					log.info("");
+					MessageDigest sha1 = MessageDigest.getInstance("SHA1");
+					MessageDigest md5 = MessageDigest.getInstance("MD5");
+					for (int i = 0; i < chain.length; i++) {
+						X509Certificate cert = chain[i];
+						log.info(" " + (i + 1) + " Subject "
+								+ cert.getSubjectDN());
+						log.info("   Issuer  " + cert.getIssuerDN());
+						sha1.update(cert.getEncoded());
+						log.info("   sha1    "
+								+ Utils.toHexString(sha1.digest()));
+						md5.update(cert.getEncoded());
+						log.info("   md5     "
+								+ Utils.toHexString(md5.digest()));
+						log.info("");
+					}
+					int k = 0;
+					X509Certificate cert = chain[k];
+					String alias = httpsURL.getHost() + "-" + (k + 1);
+					ks.setCertificateEntry(alias, cert);
+
+					OutputStream out = new FileOutputStream(keyFile);
+					ks.store(out, passphrase);
+					out.close();
+
+					log.info("");
+					log.info(cert.toString());
+					log.info("");
+					log.info("Added certificate to keystore '" + keyFile
+							+ "' using alias '" + alias + "'");
+				}
+			}
+
+			if (factory != null)
+				HttpsURLConnection.setDefaultSSLSocketFactory(factory);
 
 			respCode = con.getResponseCode();
 		} else {
@@ -841,6 +935,31 @@ public class CheckUrl extends CheckBase {
 				+ ", sslSocketFactory=" + sslSocketFactory + ", httpclient="
 				+ httpclient + ", headerDateFormatFull=" + headerDateFormatFull
 				+ ", headerDateFormat=" + headerDateFormat + "]";
+	}
+
+	private static class SavingTrustManager implements X509TrustManager {
+
+		private final X509TrustManager tm;
+		private X509Certificate[] chain;
+
+		SavingTrustManager(X509TrustManager tm) {
+			this.tm = tm;
+		}
+
+		public X509Certificate[] getAcceptedIssuers() {
+			throw new UnsupportedOperationException();
+		}
+
+		public void checkClientTrusted(X509Certificate[] chain, String authType)
+				throws CertificateException {
+			throw new UnsupportedOperationException();
+		}
+
+		public void checkServerTrusted(X509Certificate[] chain, String authType)
+				throws CertificateException {
+			this.chain = chain;
+			tm.checkServerTrusted(chain, authType);
+		}
 	}
 
 	/**
