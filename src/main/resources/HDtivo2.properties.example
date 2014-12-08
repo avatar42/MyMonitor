@@ -1,0 +1,12 @@
+region = Home
+description = Movie HD TiVo (east end of rack)
+httpsURL = https://192.168.1.51/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes
+#httpsURL=https://192.168.1.51/nowplaying/index.html?Recurse=Yes
+#seconds
+wait=300
+# in bytes
+minSize=100
+login=tivo
+## use your MAK as your password
+password=
+checkString=<td>CABLE</td><td>Enabled</td><td>Up</td>

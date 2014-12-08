@@ -1,0 +1,7 @@
+region = Hosting
+httpsURL = http://www.wunderground.com/personal-weather-station/dashboard?ID=KTXLEAND28
+#seconds
+wait=1800
+#login=
+#password=
+regexString=seconds ago</span></span>|>[1-9] minute[s]{0,1} ago</span></span>

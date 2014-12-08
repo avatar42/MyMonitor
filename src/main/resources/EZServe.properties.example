@@ -1,0 +1,7 @@
+region = Shop
+httpsURL = http://192.168.1.121/deviceslist.htm
+#seconds
+wait=1800
+login=EZServe
+password=
+checkString=M11 South floods

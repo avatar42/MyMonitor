@@ -1,0 +1,7 @@
+region = Home
+httpsURL = http://192.168.1.202/Authorizations-Package_or_Tier
+#seconds
+wait=1800
+#login=
+#password=
+checkString=List of AUTHORIZED EIDs aka Packages<TABLE border=2 cellSpacing=0 cellPadding=2><BR><tr><td> 41  </td><td> 19  </td><td> 104  </td><td> 58  </td><td> 45  </td></tr></TABLE>

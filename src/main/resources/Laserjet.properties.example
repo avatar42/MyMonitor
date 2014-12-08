@@ -1,0 +1,6 @@
+region = WiFi
+description=Laserjet Pro 200 printer
+httpsURL = http://192.168.1.106
+#seconds
+wait=1800
+regexString=Status: </td>                  <td class="itemLargeFont">                                           Ready|Status: </td>                  <td class="itemLargeFont">                                           Power&nbsp;down&nbsp;mode.

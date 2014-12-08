@@ -1,0 +1,30 @@
+region = Devices
+log = X:/spam/TimeCommanderPlus.out
+delay=100
+## false=read the whole log to get the current status
+#startAtEndOfLog=false
+tests=Drive1,Drive2,UPS1,EP
+Drive1.description=Drive north
+Drive1.error=DI Input TCP.1 ON
+Drive1.ok=DI Input TCP.1 OFF
+Drive1.errMsg=Car in drive by house
+Drive1.okMsg=Car left drive by house
+
+Drive2.description=Drive @ curve
+Drive2.error=DI Input TCP.2 ON
+Drive2.ok=DI Input TCP.2 OFF
+Drive2.errMsg=Car in drive by curve
+Drive2.okMsg=Car left drive by curve
+
+UPS1.description=UPS box
+UPS1.error=DI Input TCP.3 ON
+UPS1.ok=DI Input TCP.3 OFF
+UPS1.errMsg=UPS box open
+UPS1.okMsg=UPS box closed
+
+## heart beat
+EP.description=Heart beat
+EP.error=RECEIVED
+EP.ok=INSERT into hc_echo VALUES
+EP.errMsg=Read EchoProcessor
+EP.okMsg=Read Checking

@@ -1,0 +1,8 @@
+region = Home
+httpsURL = http://192.168.1.207/v5
+#seconds
+wait=1800
+## need better checking if ever documented
+#login=username
+#password=password
+#checkString=</html>

@@ -1,0 +1,15 @@
+region = Home
+loginURL= http://192.168.1.208/webcam_login
+login.name=id
+login.password=pwd
+login.parms=remember\=0
+sessionKey=IDKey
+## IDKey is a session ID and changes 
+httpsURL = http://192.168.1.208/LanMpegView0_QT.htm
+#seconds
+wait=1800
+## username and passowrd you login with
+login=
+password=
+## </html> not sent by geovision web server!
+checkString=>Entry</a>
