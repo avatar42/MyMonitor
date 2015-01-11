@@ -31,7 +31,7 @@ public class CheckGV extends CheckUrl {
 						sessionId = rsp.substring(start + 1, end);
 					}
 				}
-				if (sessionId == null) {
+				if (sessionId == null || sessionId.contains("<title>")) {
 					// check new software type
 					int start = rsp.indexOf(GV_NEW_KEY_MARKER);
 					if (start > -1) {
@@ -101,8 +101,8 @@ public class CheckGV extends CheckUrl {
 	 */
 	public static void main(String[] args) {
 		CheckGV item = new CheckGV();
-		item.setSaveImage(true);
-		item.loadBundle("GVB");
+		item.setSaveImage(false);
+		item.loadBundle("GVA");
 		Thread thread = item.background();
 
 		while (thread.isAlive()) {

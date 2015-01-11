@@ -32,7 +32,7 @@ public class CheckOwl extends CheckUrl {
 
 			// If we get an HTTP 401 Unauthorized with
 			// a challenge to solve.
-			HttpResponse response = execute((HttpUriRequest) request);
+			HttpResponse response = execute((HttpUriRequest) request, context);
 			if (respCode == -1) {
 				HttpEntity entity = response.getEntity();
 				if (entity != null) {
@@ -45,7 +45,7 @@ public class CheckOwl extends CheckUrl {
 					} else {
 						responseStr = "content type:" + contentType;
 					}
-					entity.consumeContent();
+					EntityUtils.consume(entity);
 				}
 			}
 		} catch (Exception e) {

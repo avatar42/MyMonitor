@@ -26,9 +26,19 @@
 			<version>1.4.1</version>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>4.3.6</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.7.3</version>
+		</dependency>
+		<dependency>
 			<groupId>com.google.api-client</groupId>
 			<artifactId>google-api-client</artifactId>
-			<version>1.5.1-beta</version>
+			<version>1.18.0-rc</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-lang</groupId>
@@ -197,10 +207,6 @@
 			</plugins>
 		</pluginManagement>
 	</build>
-
-	<!-- <repositories> <repository> <id>openqa</id> <url>http://maven.openqa.org</url> 
-		</repository> </repositories> <properties> <selenium-version>1.0-beta-1</selenium-version> 
-		</properties> -->
 	<organization>
 		<name>Round Mountain Rescue Ranch</name>
 		<url>http://dea42.com</url>

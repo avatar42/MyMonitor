@@ -47,3 +47,5 @@ src/test/resources/NowPlaying.xml
 src/test/resources/TiVoVideoDetails.xml
 keytool.bat
 jssecacerts
+src/main/java/master/TivoController.java
+/target/

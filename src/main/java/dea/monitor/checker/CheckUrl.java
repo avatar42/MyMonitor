@@ -8,7 +8,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.Authenticator;
+import java.net.CookieHandler;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
+import java.net.CookieStore;
+import java.net.HttpCookie;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
@@ -47,7 +53,6 @@ import javax.net.ssl.X509TrustManager;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpMessage;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
@@ -55,20 +60,17 @@ import org.apache.http.auth.AuthenticationException;
 import org.apache.http.auth.MalformedChallengeException;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.CookieStore;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.client.protocol.ClientContext;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.auth.DigestScheme;
-import org.apache.http.impl.client.BasicCookieStore;
-import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHttpRequest;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.params.CoreProtocolPNames;
 import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
@@ -77,15 +79,16 @@ import org.slf4j.Logger;
 import dea.monitor.tools.HttpsVerifier;
 import dea.monitor.tools.Utils;
 
-// needs keystore in working dir keytool -genkey -alias dea42.com -keyalg RSA -keystore keystorefile.store -keysize 2048
 /**
- * Check a URL to make sure it is readable
+ * Check a URL to make sure it is readable. Needs keystore in working dir
+ * keytool -genkey -alias dea42.com -keyalg RSA -keystore keystorefile.store
+ * -keysize 2048
  * 
  * @author dea
  * 
  */
 public class CheckUrl extends CheckBase {
-
+	public static final String URL_ENCODING = "utf-8";
 	public static final String WWW_AUTHENTICATE = "WWW-Authenticate";
 	public static final String AUTH_BASIC = "basic";
 	public static final String AUTH_DIGEST = "digest";
@@ -125,17 +128,29 @@ public class CheckUrl extends CheckBase {
 	private Map<String, List<String>> conHeaders;
 	private Header[] respHeaders;
 	protected String sessionId;
+	protected String urlMethod = HttpGet.METHOD_NAME;
 
 	// globals
 	protected SSLSocketFactory sslSocketFactory;
-	protected DefaultHttpClient httpclient;
+	protected CloseableHttpClient httpclient;
 	// Create a local instance of cookie store
-	protected CookieStore cookieStore = new BasicCookieStore();
+	protected CookieStore cookieStore;
 
 	protected SimpleDateFormat headerDateFormatFull = new SimpleDateFormat(
 			"EEE, dd MMM yyyy HH:mm:ss zzz");
 	protected SimpleDateFormat headerDateFormat = new SimpleDateFormat(
 			"dd MMM yyyy HH:mm:ss zzz");
+
+	protected String userAgentString = "Mozilla/5.0 (Windows; U; MSIE 9.0; WIndows NT 9.0; en-US))";
+	protected HttpContext context = new BasicHttpContext();
+
+	public CheckUrl() {
+		// make sure cookies is turn on
+		CookieManager ckman = new CookieManager();
+		ckman.setCookiePolicy(CookiePolicy.ACCEPT_ALL);
+		CookieHandler.setDefault(ckman);
+		cookieStore = ckman.getCookieStore();
+	}
 
 	public void setKeystore() {
 		if (System.getProperty("javax.net.ssl.trustStorePassword") == null) {
@@ -153,7 +168,11 @@ public class CheckUrl extends CheckBase {
 
 	protected void shutdownClient() {
 		if (httpclient != null) {
-			httpclient.getConnectionManager().shutdown();
+			try {
+				httpclient.close();
+			} catch (IOException e) {
+				log.error("Client close failed:", e);
+			}
 		}
 	}
 
@@ -259,22 +278,41 @@ public class CheckUrl extends CheckBase {
 	 * Get Last-Modified and Content-Length from headers. Prints headers at info
 	 * log level
 	 */
-	protected void checkHeaders(HttpResponse response) throws ParseException {
-		respHeaders = response.getAllHeaders();
+	protected void checkHeaders(HttpUriRequest request) throws ParseException {
+		log.info("HttpUriRequest:");
+		respHeaders = request.getAllHeaders();
 		for (Header header : respHeaders) {
 			log.info(header.getName() + ":" + header.getValue());
-			if (header.getName().equals("Last-Modified")) {
-				modDate = parseDate(header.getValue());
-			} else if (header.getName().equals("Content-Length")) {
-				len = new Long(header.getValue());
-			} else if (header.getName().equals("Content-Type")) {
-				contentType = header.getValue();
-			} else if (header.getName().equals(sessionKeyParam)) {
-				sessionId = header.getValue();
-			} else if (header.getName().equals("Date")) {
-				modDate = parseDate(header.getValue());
+		}
+		log.info(getCookies(request.getURI()));
+	}
+
+	/**
+	 * Get Last-Modified and Content-Length from headers. Prints headers at info
+	 * log level
+	 */
+	protected void checkHeaders(HttpResponse response, URI uri)
+			throws ParseException {
+		log.info("HttpResponse:");
+		if (response != null) {
+			respHeaders = response.getAllHeaders();
+			for (Header header : respHeaders) {
+				log.info(header.getName() + ":" + header.getValue());
+				if (header.getName().equals("Last-Modified")) {
+					modDate = parseDate(header.getValue());
+				} else if (header.getName().equals("Content-Length")) {
+					len = new Long(header.getValue());
+				} else if (header.getName().equals("Content-Type")) {
+					contentType = header.getValue();
+				} else if (header.getName().equals(sessionKeyParam)) {
+					sessionId = header.getValue();
+				} else if (header.getName().equals("Date")) {
+					modDate = parseDate(header.getValue());
+				}
 			}
 		}
+		setCookies(response, uri);
+		log.info(getCookies(uri));
 	}
 
 	protected boolean isHttps() {
@@ -290,6 +328,8 @@ public class CheckUrl extends CheckBase {
 			HttpsURLConnection.setDefaultHostnameVerifier(HttpsVerifier
 					.getInstance());
 
+			// since most of the stuff we hit is self signed or expired just
+			// trust them
 			try {
 				final TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
 					public void checkClientTrusted(
@@ -448,7 +488,7 @@ public class CheckUrl extends CheckBase {
 
 		// con.setRequestProperty(
 		// "User-Agent",
-		// "Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US; rv:1.9.1.2) Gecko/20090729 Firefox/3.5.2 (.NET CLR 3.5.30729)");
+		// userAgentString);
 
 		if (login != null) {
 			con.setRequestProperty("Authorization", getBasicAuth());
@@ -461,30 +501,23 @@ public class CheckUrl extends CheckBase {
 	 * 
 	 * @param request
 	 *            - the request to execute
+	 * @param context
+	 *            TODO
 	 * @return - the response to this request
 	 * @throws ClientProtocolException
 	 * @throws IOException
 	 * @throws ParseException
 	 */
-	protected HttpResponse execute(HttpUriRequest request)
+	protected HttpResponse execute(HttpUriRequest request, HttpContext context)
 			throws ClientProtocolException, IOException, ParseException {
 		HttpResponse response = null;
-		httpclient = new DefaultHttpClient();
-		// Create local HTTP context
-		HttpContext context = new BasicHttpContext();
+		httpclient = HttpClients.custom().setUserAgent(userAgentString).build();
+		// .setDefaultCookieStore(cookieStore)
 
-		// Bind custom cookie store to the local context
-		context.setAttribute(ClientContext.COOKIE_STORE, cookieStore);
-
-		HttpGet httpget = new HttpGet("http://www.google.com/");
-
-		System.out.println("executing request " + httpget.getURI());
-
-		context.setAttribute(CoreProtocolPNames.USER_AGENT,
-				"Mozilla/5.0 (Windows; U; MSIE 9.0; WIndows NT 9.0; en-US))");
 		log.info("Doing " + request.getMethod() + " to " + request.getURI());
-		response = httpclient.execute(request, context);
-		checkHeaders(response);
+		checkHeaders(request);
+		response = httpclient.execute(request); // , context);
+		checkHeaders(response, request.getURI());
 		respCode = response.getStatusLine().getStatusCode();
 		return response;
 	}
@@ -502,7 +535,7 @@ public class CheckUrl extends CheckBase {
 				solution = md5Auth.authenticate(
 						new UsernamePasswordCredentials(login, password),
 						new BasicHttpRequest(HttpGet.METHOD_NAME, httpsURL
-								.getPath()));
+								.getPath()), context);
 
 			} else if (cVal.contains(AUTH_DIGEST)) {
 				// A org.apache.http.impl.auth.DigestScheme instance is
@@ -516,7 +549,7 @@ public class CheckUrl extends CheckBase {
 				solution = md5Auth.authenticate(
 						new UsernamePasswordCredentials(login, password),
 						new BasicHttpRequest(HttpGet.METHOD_NAME, httpsURL
-								.getPath()));
+								.getPath()), context);
 				log.info("auth header:" + solution.getName() + ":"
 						+ solution.getValue());
 			} else {
@@ -565,7 +598,7 @@ public class CheckUrl extends CheckBase {
 					}
 				}
 				request.setEntity(new UrlEncodedFormEntity(nameValuePairs));
-				response = execute((HttpUriRequest) request);
+				response = execute((HttpUriRequest) request, context);
 				if (respCode == HttpStatus.SC_OK) {
 					HttpEntity entity = response.getEntity();
 					if (entity != null) {
@@ -584,29 +617,91 @@ public class CheckUrl extends CheckBase {
 		return responseStr;
 	}
 
+	protected HttpUriRequest initRequest(String url) throws URISyntaxException,
+			UnsupportedEncodingException {
+		if (sessionId != null) {
+			if (url.contains("?"))
+				url += "&";
+			else
+				url += "?";
+
+			List<BasicNameValuePair> params = new LinkedList<BasicNameValuePair>();
+			params.add(new BasicNameValuePair(sessionKeyParam, sessionId));
+
+			String paramString = URLEncodedUtils.format(params, URL_ENCODING);
+
+			url += paramString;
+		}
+		HttpUriRequest request = null;
+		URI uri;
+		if (HttpGet.METHOD_NAME.equals(urlMethod)) {
+			uri = new URI(url);
+			request = new HttpGet(uri);
+		} else if (HttpPost.METHOD_NAME.equals(urlMethod)) {
+			uri = new URI(url);
+			int i = url.indexOf('?');
+			if (i == -1)
+				request = new HttpPost(uri);
+			else
+				request = new HttpPost(new URI(url.substring(0, i)));
+
+			List<NameValuePair> postParams = URLEncodedUtils.parse(uri,
+					URL_ENCODING);
+			if (postParams != null) {
+				((HttpPost) request).setEntity(new UrlEncodedFormEntity(
+						postParams));
+				log.info("Post parameters : " + postParams);
+			}
+		} else {
+			throw new UnsupportedOperationException(urlMethod + " unsupported");
+		}
+		String urlStr = uri.toString();
+		int i = urlStr.indexOf('?');
+		String referer;
+		if (i == -1) {
+			referer = urlStr;
+		} else {
+			referer = urlStr.substring(0, i);
+		}
+		request.setHeader("Host", uri.getHost());
+		request.setHeader("User-Agent", userAgentString);
+		request.setHeader("Accept",
+				"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+		request.setHeader("Accept-Language", "en-US,en;q=0.5");
+		request.setHeader("Cookie", getCookies(uri));
+		request.setHeader("Connection", "keep-alive");
+		request.setHeader("Referer", referer);
+		request.setHeader("Content-Type", "application/x-www-form-urlencoded");
+
+		return request;
+	}
+
+	public String getCookies(URI uri) {
+		List<HttpCookie> cookies = cookieStore.get(uri);
+		StringBuilder sb = new StringBuilder();
+		for (HttpCookie cookie : cookies) {
+			sb.append(cookie.getName()).append('=').append(cookie.getValue())
+					.append("; ");
+		}
+		return sb.toString();
+	}
+
+	public void setCookies(HttpResponse response, URI uri) {
+		for (Header h : response.getHeaders("Set-Cookie")) {
+			HttpCookie cookie = new HttpCookie(h.getName(), h.getValue());
+			cookieStore.add(uri, cookie);
+			log.info("Setting Cookie:" + cookie);
+		}
+	}
+
 	protected String executeRequest() {
 		String responseStr = null;
 
 		try {
-
-			String url = httpsURL.toString();
-			if (sessionId != null) {
-				if (url.contains("?"))
-					url += "&";
-				else
-					url += "?";
-
-				List<BasicNameValuePair> params = new LinkedList<BasicNameValuePair>();
-				params.add(new BasicNameValuePair(sessionKeyParam, sessionId));
-
-				String paramString = URLEncodedUtils.format(params, "utf-8");
-
-				url += paramString;
-			}
-			HttpMessage request = new HttpGet(new URI(url));
+			HttpUriRequest request = initRequest(httpsURL.toString());
 			// If we get an HTTP 401 Unauthorized with
 			// a challenge to solve.
-			HttpResponse response = execute((HttpUriRequest) request);
+			HttpResponse response = execute(request, context);
 			// Validate that we got an HTTP 401 back
 			if (respCode == HttpStatus.SC_UNAUTHORIZED) {
 				if (response.containsHeader(WWW_AUTHENTICATE)) {
@@ -623,7 +718,8 @@ public class CheckUrl extends CheckBase {
 						// Authentication header as generated by HttpClient.
 						request.addHeader(solution);
 						try {
-							response = execute((HttpUriRequest) request);
+							response = execute((HttpUriRequest) request,
+									context);
 						} catch (Exception e) {
 							setErrStr("Exception connecting to server:", e);
 						}
@@ -693,8 +789,11 @@ public class CheckUrl extends CheckBase {
 					}
 					// TODO: in version 4.1 this was deprecated
 					// user EntityUtils.consumeContent(entity) instead
-					entity.consumeContent();
+
+					EntityUtils.consume(entity);
 				}
+			} else {
+				setErrStr("URL returned:" + respCode);
 			}
 		} catch (Exception e) {
 			setErrStr("Failed reading URL", e);
@@ -880,6 +979,7 @@ public class CheckUrl extends CheckBase {
 		password = getBundleVal(String.class, "password", password);
 		timeout = getBundleVal(Integer.class, "timeout", timeout);
 		checkString = getBundleVal(String.class, "checkString", checkString);
+		urlMethod = getBundleVal(String.class, "urlMethod", HttpGet.METHOD_NAME);
 
 		String regexString = getBundleVal(String.class, "regexString", null);
 		if (regexString != null) {

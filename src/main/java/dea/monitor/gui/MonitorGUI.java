@@ -25,6 +25,13 @@ import dea.monitor.checker.CheckItemI;
 import dea.monitor.checker.ChildCheckItemI;
 import dea.monitor.checker.MultiCheckI;
 
+/**
+ * Main window / run class for monitor TODO: add menu option the retry all in
+ * error checks.
+ * 
+ * @author dea
+ * 
+ */
 public class MonitorGUI {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 

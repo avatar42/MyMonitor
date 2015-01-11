@@ -28,6 +28,13 @@ import javax.swing.UIManager;
 
 import dea.monitor.checker.CheckItemI;
 
+/**
+ * Button to show status by color, shows status details in a dialog when
+ * clicked. TODO: add right click does retry.
+ * 
+ * @author dea
+ * 
+ */
 public class CheckButton extends JButton implements MouseListener {
 	/**
 	 * 
