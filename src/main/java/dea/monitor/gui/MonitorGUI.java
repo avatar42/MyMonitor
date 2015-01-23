@@ -5,7 +5,10 @@ import java.awt.ComponentOrientation;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -13,9 +16,13 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 
+import javax.swing.AbstractAction;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
 import org.slf4j.Logger;
@@ -33,6 +40,10 @@ import dea.monitor.checker.MultiCheckI;
  * 
  */
 public class MonitorGUI {
+	public static final int RECHECK_ALL = 1;
+	public static final int RECHECK_ERRORS = 2;
+	public static final int CLEAR_ERRORS = 3;
+
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	private JFrame frame;
@@ -41,8 +52,7 @@ public class MonitorGUI {
 	private ScrollingLogPane statusLog;
 	private Map<String, JPanel> rPanels = new HashMap<String, JPanel>();
 	private Map<String, CheckButton> buttons = new HashMap<String, CheckButton>();
-	private JLabel status = new JLabel("Server Monitor");
-
+	private JMenuBar menuBar = new JMenuBar();
 	private ResourceBundle bundle;
 
 	@SuppressWarnings("unchecked")
@@ -123,18 +133,49 @@ public class MonitorGUI {
 		mainPanel.add(statusLog, BorderLayout.SOUTH);
 		statusLog.logIt(ScrollingLogPane.SHOW_INFO, "Initializing");
 
-		mainPanel.add(status, BorderLayout.NORTH);
+		// Build the first menu.
+		JMenu menu = new JMenu("Reset");
+		menu.setMnemonic(KeyEvent.VK_R);
+		menu.getAccessibleContext().setAccessibleDescription(
+				"Button reset options");
+		menuBar.add(menu);
+
+		// reset options
+		JMenuItem menuItem = new JMenuItem(new ResetAction(RECHECK_ALL,
+				"Recheck All"));
+		menuItem.setMnemonic(KeyEvent.VK_A);
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A,
+				ActionEvent.ALT_MASK));
+		menuItem.getAccessibleContext().setAccessibleDescription(
+				"Set all button to recheck now.");
+
+		menu.add(menuItem);
+
+		menuItem = new JMenuItem(new ResetAction(RECHECK_ERRORS,
+				"Recheck Errors"));
+		menuItem.setMnemonic(KeyEvent.VK_E);
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E,
+				ActionEvent.ALT_MASK));
+		menuItem.getAccessibleContext()
+				.setAccessibleDescription(
+						"Recheck all buttons in error status and clear error details on buttons that have recovered from an error.");
+
+		menu.add(menuItem);
+
+		menuItem = new JMenuItem(new ResetAction(CLEAR_ERRORS, "Clear Errors"));
+		menuItem.setMnemonic(KeyEvent.VK_C);
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C,
+				ActionEvent.ALT_MASK));
+		menuItem.getAccessibleContext().setAccessibleDescription(
+				"Remove error details from all buttons.");
+
+		menu.add(menuItem);
+
+		mainPanel.add(menuBar, BorderLayout.NORTH);
 
 		JPanel pane = new JPanel();
 		pane.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT);
 		pane.setLayout(new GridBagLayout());
-		GridBagConstraints c = new GridBagConstraints();
-		// natural height, maximum width
-		c.fill = GridBagConstraints.HORIZONTAL + GridBagConstraints.VERTICAL;
-
-		c.weightx = 0.5;
-		c.gridx = 0;
-		c.gridy = 0;
 
 		for (String region : regions) {
 			JPanel rpane = new JPanel();
@@ -146,9 +187,7 @@ public class MonitorGUI {
 					- logHeight);
 			rpane.setMinimumSize(minimumSize);
 			rpane.setPreferredSize(minimumSize);
-			pane.add(rpane, c);
 			rPanels.put(region, rpane);
-			c.gridx++;
 		}
 
 		for (CheckItemI item : checks) {
@@ -157,6 +196,20 @@ public class MonitorGUI {
 			rpane.add(b);
 			buttons.put(item.getName(), b);
 		}
+
+		GridBagConstraints c = new GridBagConstraints();
+		// natural height, maximum width
+		c.fill = GridBagConstraints.HORIZONTAL + GridBagConstraints.VERTICAL;
+
+		c.weightx = 0.5;
+		c.gridx = 0;
+		c.gridy = 0;
+
+		for (JPanel rpane : rPanels.values()) {
+			pane.add(rpane, c);
+			c.gridx++;
+		}
+
 		mainPanel.add(pane, BorderLayout.CENTER);
 
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -184,6 +237,57 @@ public class MonitorGUI {
 	 * @param args
 	 */
 	public void parseArgs(String[] args) {
+	}
+
+	class ResetAction extends AbstractAction {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1L;
+
+		int resetType;
+
+		// This is our sample action. It must have an actionPerformed() method,
+		// which is called when the action should be invoked.
+		public ResetAction(int resetType, String text) {
+			super(text, null);
+			this.resetType = resetType;
+		}
+
+		public void actionPerformed(ActionEvent e) {
+			for (CheckButton cb : buttons.values()) {
+				if (resetType == RECHECK_ALL) { // retry all now
+					cb.getItem().setNextRun(new GregorianCalendar());
+					cb.setLastErr(null);
+					cb.getItem().setDetails(null);
+					cb.setState(CheckButton.STATE_UNKOWN);
+				} else if (resetType == RECHECK_ERRORS) {
+					if (cb.getState() == CheckButton.STATE_ERR) {
+						cb.getItem().setNextRun(new GregorianCalendar());
+						cb.setState(CheckButton.STATE_UNKOWN);
+					}
+					if (cb.getState() == CheckButton.STATE_OK_WITH_ERR) {
+						cb.setState(CheckButton.STATE_ERR);
+					}
+					cb.setLastErr(null);
+					cb.getItem().setDetails(null);
+				} else if (resetType == CLEAR_ERRORS) {
+					if (cb.getState() == CheckButton.STATE_ERR) {
+						cb.setState(CheckButton.STATE_UNKOWN);
+					}
+					if (cb.getState() == CheckButton.STATE_OK_WITH_ERR) {
+						cb.setState(CheckButton.STATE_ERR);
+					}
+					if (cb.getState() == CheckButton.STATE_ERR
+							|| cb.getState() == CheckButton.STATE_OK_WITH_ERR) {
+						cb.setLastErr(null);
+						cb.getItem().setDetails(null);
+					}
+				}
+			}
+			System.out.println("Action [" + e.getActionCommand()
+					+ "] performed!");
+		}
 	}
 
 	public static void main(String[] args) {
