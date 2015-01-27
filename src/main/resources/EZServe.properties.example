@@ -2,6 +2,8 @@ region = Shop
 httpsURL = http://192.168.1.121/deviceslist.htm
 #seconds
 wait=1800
+## use your login and password below
 login=EZServe
 password=
-checkString=M11 South floods
+## where "outside" is the name of a defined area 
+checkString=<OPTION SELECTED>outside
