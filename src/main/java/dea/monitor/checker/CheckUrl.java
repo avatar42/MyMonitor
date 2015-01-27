@@ -1069,7 +1069,7 @@ public class CheckUrl extends CheckBase {
 	 */
 	public static void main(String[] args) {
 		CheckUrl item = new CheckUrl();
-		item.loadBundle("ipcam11");
+		item.loadBundle(args[0]);
 		Thread thread = item.background();
 
 		while (thread.isAlive()) {
