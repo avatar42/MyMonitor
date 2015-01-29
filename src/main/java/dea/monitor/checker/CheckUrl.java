@@ -787,11 +787,16 @@ public class CheckUrl extends CheckBase {
 					} else {
 						responseStr = "content type:" + contentType;
 					}
-					// TODO: in version 4.1 this was deprecated
-					// user EntityUtils.consumeContent(entity) instead
 
 					EntityUtils.consume(entity);
 				}
+			} else if (respCode == HttpStatus.SC_FORBIDDEN) {
+				StringBuilder sb = new StringBuilder();
+				for (String key : conHeaders.keySet()) {
+					sb.append(key).append(":").append(conHeaders.get(key))
+							.append('\n');
+				}
+				responseStr = sb.toString();
 			} else {
 				setErrStr("URL returned:" + respCode);
 			}
@@ -836,6 +841,15 @@ public class CheckUrl extends CheckBase {
 			// if connects OK do the read just to be sure
 			if (respCode == HttpURLConnection.HTTP_OK || ignoreRespCode) {
 				result = getUrlContentAsString(con);
+			} else if (respCode == HttpURLConnection.HTTP_FORBIDDEN
+					|| ignoreRespCode) {
+				StringBuilder sb = new StringBuilder();
+				for (String key : conHeaders.keySet()) {
+					sb.append(key).append(":").append(conHeaders.get(key))
+							.append('\n');
+				}
+				result = sb.toString();
+
 			} else {
 				setErrStr("Failed:" + respCode + ": "
 						+ con.getResponseMessage());
@@ -938,7 +952,8 @@ public class CheckUrl extends CheckBase {
 		for (int i = 0; i < retries; i++) {
 			String s = getUrl();
 			log.info(s);
-			if (respCode == HttpURLConnection.HTTP_OK) {
+			if (respCode == HttpURLConnection.HTTP_OK
+					|| respCode == HttpURLConnection.HTTP_FORBIDDEN) {
 				if (checkResponse(s)) {
 					setDetails(s);
 					break;

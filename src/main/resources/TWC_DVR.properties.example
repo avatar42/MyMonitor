@@ -4,4 +4,6 @@ httpsURL = http://192.168.1.202/Authorizations-Package_or_Tier
 wait=1800
 #login=
 #password=
-checkString=List of AUTHORIZED EIDs aka Packages<TABLE border=2 cellSpacing=0 cellPadding=2><BR><tr><td> 41  </td><td> 19  </td><td> 104  </td><td> 58  </td><td> 45  </td></tr></TABLE>
+## If you can use AUTHORIZED EID line but if you get a 403 use the ODN line with your mac addr subbed
+##checkString=List of AUTHORIZED EIDs aka Packages<TABLE border=2 cellSpacing=0 cellPadding=2><BR><tr><td> 41  </td><td> 19  </td><td> 104  </td><td> 58  </td><td> 45  </td></tr></TABLE>
+checkString=Server:[ODN Webserver[10:EA:59:1C:7B:8D]]
