@@ -47,6 +47,9 @@ public abstract class CheckBase implements CheckItemI {
 				if (Integer.class.isAssignableFrom(asClass))
 					return (T) new Integer(bundle.getString(key));
 
+				if (Long.class.isAssignableFrom(asClass))
+					return (T) new Long(bundle.getString(key));
+
 				if (Boolean.class.isAssignableFrom(asClass))
 					return (T) new Boolean(bundle.getString(key));
 
