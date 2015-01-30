@@ -1,0 +1,7 @@
+region = Bridge
+httpsURL = http://192.168.1.1/RST_stattbl.htm
+#seconds
+wait=300
+login=admin
+password=password
+checkString=WAN</span>  </td> <td nowrap width="10%" align="center"> <span class="ttext">1000M/Full</span>

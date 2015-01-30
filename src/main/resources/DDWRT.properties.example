@@ -1,0 +1,8 @@
+region = Bridge
+httpsURL = http://192.168.1.1/Info.htm
+#seconds
+wait=300
+login=admin
+password=password
+## tells me if my external IP has changed
+checkString=<span id="wan_ipaddr">24.27.67.14</span>
