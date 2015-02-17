@@ -1,5 +1,5 @@
 region = Home
-decription=Read current mode from home hub
+description=Read current mode from home hub
 httpsURL = http://192.168.1.206:3480/data_request?id=variableget&Variable=Mode
 #seconds
 wait=1800
