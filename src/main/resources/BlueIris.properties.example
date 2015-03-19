@@ -1,0 +1,8 @@
+## Check Blue Iris 4 web server is up
+region = Cams
+description = Blue Iris 4
+httpsURL = http://192.168.1.48/jpegpull.htm
+login=admin
+password=password
+## name of cam that should be in list
+checkString=Bird&nbsp;Feeder&nbsp;HD
