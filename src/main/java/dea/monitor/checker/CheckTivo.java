@@ -25,15 +25,25 @@ import org.xml.sax.InputSource;
 
 public class CheckTivo extends CheckUrl {
 	public static final String YES = "Yes";
+	// absolute
+	public static final String REPORT_DETAILS_XPATH = "/TiVoContainer/Details";
+	public static final String REPORT_ITEMS_XPATH = "/TiVoContainer/Item";
+	// relative to top
+	public static final String LAST_CHANGE_DATE_XPATH = "./LastChangeDate";
+	// relative to item
 	public static final String IN_PROGRESS_XPATH = "./Details/InProgress";
 	public static final String DURATION_XPATH = "./Details/Duration";
 	public static final String SHOWING_DURATION_XPATH = "./Details/ShowingDuration";
 	public static final String TITLE_XPATH = "./Details/Title";
 	public static final String EPISODE_TITLE_XPATH = "./Details/EpisodeTitle";
 	public static final String CAPTURE_DATE_XPATH = "./Details/CaptureDate";
+	public static final String SHOWING_START_TIME_XPATH = "./Details/ShowingStartTime";
 
 	private int minSize = 0;
 	private long maxShort = 300000;
+	// it appears the report data can be up to 5 minutes out of date so add this
+	// amount of allowable error.
+	private long deviation = 5 * 60 * 1000;
 
 	public void loadBundle() {
 		super.loadBundle();
@@ -120,10 +130,19 @@ public class CheckTivo extends CheckUrl {
 						XPathFactory xpathFactory = XPathFactory.newInstance();
 						XPath xpath = xpathFactory.newXPath();
 
+						Node details = (Node) xpath.evaluate(
+								REPORT_DETAILS_XPATH, document,
+								XPathConstants.NODE);
+						// LastChangeDate
+						String reportDate = getValue(xpath, details,
+								LAST_CHANGE_DATE_XPATH);
+						long reportTime = Long.decode(reportDate) * 1000;
+
 						NodeList itemList = (NodeList) xpath.evaluate(
-								"/TiVoContainer/Item", document,
+								REPORT_ITEMS_XPATH, document,
 								XPathConstants.NODESET);
 						StringBuilder errMsg = new StringBuilder();
+						StringBuilder detailsSb = new StringBuilder();
 						if (itemList.getLength() == 0) {
 							errMsg.append("No shows in my shows").append("\n");
 						} else {
@@ -136,20 +155,42 @@ public class CheckTivo extends CheckUrl {
 								if (ep != null) {
 									title = title + ":" + ep;
 								}
+								// CaptureDate
 								String cap = getValue(xpath, item,
 										CAPTURE_DATE_XPATH);
 								long captime = Long.decode(cap) * 1000;
-								// CaptureDate
-								log.debug(title + ":Captured:"
-										+ new Date(captime));
+								// StartTime
+								String start = getValue(xpath, item,
+										SHOWING_START_TIME_XPATH);
+								long starttime = Long.decode(start) * 1000;
+
 								long recordSecs = getLong(xpath, item,
 										DURATION_XPATH);
-								// if done recording
-								if (!getBool(xpath, item, IN_PROGRESS_XPATH)) {
+								boolean inProgress = getBool(xpath, item,
+										IN_PROGRESS_XPATH);
+
+								long statTime;
+								if (starttime > captime)
+									statTime = starttime + recordSecs
+											+ deviation;
+								else
+									statTime = captime + recordSecs + deviation;
+
+								String itemDets = title + ":Captured:"
+										+ new Date(captime) + ":Started:"
+										+ new Date(starttime) + ":Recorded:"
+										+ (recordSecs / 1000) + " seconds :of:"
+										+ ((reportTime - starttime) / 1000)
+										+ ":inProgress:" + inProgress;
+
+								log.debug(itemDets);
+								// if done recording check that amount recorded
+								// is close to what should have been.
+								if (!inProgress) {
 									long showSecs = getLong(xpath, item,
 											SHOWING_DURATION_XPATH);
-									// if recorded short more than 5 mins of
-									// show
+									// if recorded short more than maxShort of
+									// show run time
 									if (recordSecs + maxShort < showSecs) {
 										errMsg.append(title)
 												.append(" short ")
@@ -158,11 +199,33 @@ public class CheckTivo extends CheckUrl {
 												.append("\n");
 									}
 								} else {
-									if (System.currentTimeMillis() < captime
-											+ recordSecs) {
-										errMsg.append(title)
-												.append(" appears hung")
-												.append("\n");
+									log.debug(title + ":" + (reportTime / 1000)
+											+ ">" + (statTime / 1000)
+											+ " diff:"
+											+ ((reportTime - statTime) / 1000));
+									if (reportTime > statTime) {
+										// channel you cannot get, get added all
+										// the time
+										// Also if you have TWC they crash my
+										// tuner boxes at least once a month
+										// sending
+										// out updates.
+										if (recordSecs == 0) {
+											detailsSb
+													.append("Cable tuner needs reboot or channel not authorized:");
+											detailsSb
+													.append("Cable tuner needs reboot or channel not authorized:")
+													.append("\n")
+													.append(itemDets);
+
+										} else {
+											detailsSb.append("Appears hung:")
+													.append("\n")
+													.append(itemDets);
+											detailsSb.append("Appears hung:")
+													.append("\n")
+													.append(itemDets);
+										}
 									}
 								}
 							}

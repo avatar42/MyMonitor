@@ -103,6 +103,17 @@ public class MonitorGUI {
 				} catch (Exception e) {
 					log.error("Failed to load:" + key, e);
 				}
+			} else if (key.startsWith("handler.")) {
+				String className = bundle.getString(key);
+				try {
+					Class<?> hiClass = Class.forName(className);
+					CheckItemI instance = (CheckItemI) hiClass.newInstance();
+					instance.loadBundle(key.substring(8));
+					checks.add(instance);
+					regions.add(instance.getRegion());
+				} catch (Exception e) {
+					log.error("Failed to load:" + key, e);
+				}
 			}
 		}
 	}

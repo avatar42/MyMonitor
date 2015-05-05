@@ -22,7 +22,8 @@ public class CheckIris extends CheckUrl {
 		for (int i = 0; i < retries; i++) {
 			String s = executeRequest();
 
-			if (respCode == HttpURLConnection.HTTP_OK) {
+			if (respCode == HttpURLConnection.HTTP_OK
+					|| respCode == HttpURLConnection.HTTP_MOVED_TEMP) {
 				setDetails(s);
 				setState(null);
 				break;
@@ -69,7 +70,7 @@ public class CheckIris extends CheckUrl {
 	 */
 	public static void main(String[] args) {
 		CheckIris item = new CheckIris();
-		item.loadBundle("Iris");
+		item.loadBundle(args[0]);
 		Thread thread = item.background();
 
 		while (thread.isAlive()) {

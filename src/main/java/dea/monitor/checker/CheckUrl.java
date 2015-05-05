@@ -308,6 +308,17 @@ public class CheckUrl extends CheckBase {
 					sessionId = header.getValue();
 				} else if (header.getName().equals("Date")) {
 					modDate = parseDate(header.getValue());
+				} else if (header.getName().equals("Location")) {
+					// if (respCode == HttpURLConnection.HTTP_MOVED_TEMP) {
+					// URL oldUrl = httpsURL;
+					// try {
+					// log.info("Changing URL:" + header.getValue());
+					// httpsURL = new URL(header.getValue());
+					// } catch (MalformedURLException e) {
+					// log.error("Invaild redirect:" + header.getValue());
+					// httpsURL = oldUrl;
+					// }
+					// }
 				}
 			}
 		}
@@ -599,7 +610,9 @@ public class CheckUrl extends CheckBase {
 				}
 				request.setEntity(new UrlEncodedFormEntity(nameValuePairs));
 				response = execute((HttpUriRequest) request, context);
-				if (respCode == HttpStatus.SC_OK) {
+				log.info("login response code:" + respCode);
+				if (respCode == HttpStatus.SC_OK
+						|| respCode == HttpStatus.SC_MOVED_TEMPORARILY) {
 					HttpEntity entity = response.getEntity();
 					if (entity != null) {
 						if (contentType.contains("text")) {
@@ -841,6 +854,9 @@ public class CheckUrl extends CheckBase {
 			// if connects OK do the read just to be sure
 			if (respCode == HttpURLConnection.HTTP_OK || ignoreRespCode) {
 				result = getUrlContentAsString(con);
+			} else if (respCode == HttpURLConnection.HTTP_MOVED_TEMP
+					|| ignoreRespCode) {
+				result = getUrlContentAsString(con);
 			} else if (respCode == HttpURLConnection.HTTP_FORBIDDEN
 					|| ignoreRespCode) {
 				StringBuilder sb = new StringBuilder();
@@ -950,14 +966,35 @@ public class CheckUrl extends CheckBase {
 		running = true;
 		log.warn("reading url");
 		for (int i = 0; i < retries; i++) {
-			String s = getUrl();
-			log.info(s);
-			if (respCode == HttpURLConnection.HTTP_OK
-					|| respCode == HttpURLConnection.HTTP_FORBIDDEN) {
-				if (checkResponse(s)) {
-					setDetails(s);
-					break;
+			if (loginURL != null) {
+				String rsp = login();
+				if (rsp != null && rsp.contains("IDS_WEB_ID_PWD_ERROR")) {
+					setDetails(rsp);
+					setState("Login failed");
+
+				} else {
+					String s = executeRequest();
+					log.info(s);
+					if (respCode == HttpURLConnection.HTTP_OK
+							|| respCode == HttpURLConnection.HTTP_FORBIDDEN) {
+						if (checkResponse(s)) {
+							setDetails(s);
+							break;
+						}
+					}
 				}
+
+			} else {
+				String s = getUrl();
+				log.info(s);
+				if (respCode == HttpURLConnection.HTTP_OK
+						|| respCode == HttpURLConnection.HTTP_FORBIDDEN) {
+					if (checkResponse(s)) {
+						setDetails(s);
+						break;
+					}
+				}
+
 			}
 		}
 		setState(foundString);
@@ -1037,19 +1074,81 @@ public class CheckUrl extends CheckBase {
 
 	@Override
 	public String toString() {
-		return "CheckUrl [" + super.toString() + ",retries=" + retries
-				+ ", httpsURL=" + httpsURL + ", keyFile=" + keyFile
-				+ ", keyPass=" + keyPass + ", login=" + login + ", password="
-				+ password + ", authType=" + authType + ", timeout=" + timeout
-				+ ", checkString=" + checkString + ", pattern=" + pattern
-				+ ", followRedirects=" + followRedirects + ", modDate="
-				+ modDate + ", len=" + len + ", respCode=" + respCode
-				+ ", timeToRun=" + timeToRun + ", foundString=" + foundString
-				+ ", ignoreRespCode=" + ignoreRespCode + ", conHeaders="
-				+ conHeaders + ", respHeaders=" + Arrays.toString(respHeaders)
-				+ ", sslSocketFactory=" + sslSocketFactory + ", httpclient="
-				+ httpclient + ", headerDateFormatFull=" + headerDateFormatFull
-				+ ", headerDateFormat=" + headerDateFormat + "]";
+		StringBuilder builder = new StringBuilder();
+		builder.append("CheckUrl [");
+		builder.append(super.toString());
+		builder.append(",retries=");
+		builder.append(retries);
+		builder.append(", httpsURL=");
+		builder.append(httpsURL);
+		builder.append(", loginURL=");
+		builder.append(loginURL);
+		builder.append(", loginNameParam=");
+		builder.append(loginNameParam);
+		builder.append(", loginPasswordParam=");
+		builder.append(loginPasswordParam);
+		builder.append(", loginParam=");
+		builder.append(loginParam);
+		builder.append(", sessionKeyParam=");
+		builder.append(sessionKeyParam);
+		builder.append(", keyFile=");
+		builder.append(keyFile);
+		builder.append(", keyPass=");
+		builder.append(keyPass);
+		builder.append(", login=");
+		builder.append(login);
+		builder.append(", password=");
+		builder.append(password);
+		builder.append(", authType=");
+		builder.append(authType);
+		builder.append(", timeout=");
+		builder.append(timeout);
+		builder.append(", checkString=");
+		builder.append(checkString);
+		builder.append(", pattern=");
+		builder.append(pattern);
+		builder.append(", followRedirects=");
+		builder.append(followRedirects);
+		builder.append(", saveImage=");
+		builder.append(saveImage);
+		builder.append(", savePath=");
+		builder.append(savePath);
+		builder.append(", modDate=");
+		builder.append(modDate);
+		builder.append(", len=");
+		builder.append(len);
+		builder.append(", respCode=");
+		builder.append(respCode);
+		builder.append(", timeToRun=");
+		builder.append(timeToRun);
+		builder.append(", foundString=");
+		builder.append(foundString);
+		builder.append(", ignoreRespCode=");
+		builder.append(ignoreRespCode);
+		builder.append(", conHeaders=");
+		builder.append(conHeaders);
+		builder.append(", respHeaders=");
+		builder.append(Arrays.toString(respHeaders));
+		builder.append(", sessionId=");
+		builder.append(sessionId);
+		builder.append(", urlMethod=");
+		builder.append(urlMethod);
+		builder.append(", sslSocketFactory=");
+		builder.append(sslSocketFactory);
+		builder.append(", httpclient=");
+		builder.append(httpclient);
+		builder.append(", cookieStore=");
+		builder.append(cookieStore);
+		builder.append(", headerDateFormatFull=");
+		builder.append(headerDateFormatFull);
+		builder.append(", headerDateFormat=");
+		builder.append(headerDateFormat);
+		builder.append(", userAgentString=");
+		builder.append(userAgentString);
+		builder.append(", context=");
+		builder.append(context);
+		builder.append("]");
+		return builder.toString();
 	}
 
 	private static class SavingTrustManager implements X509TrustManager {

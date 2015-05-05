@@ -83,7 +83,7 @@ public class CheckCam extends CheckUrl {
 	public static void main(String[] args) {
 		CheckCam item = new CheckCam();
 		item.setSaveImage(true);
-		item.loadBundle("ipcam14");
+		item.loadBundle(args[0]);
 		Thread thread = item.background();
 
 		while (thread.isAlive()) {

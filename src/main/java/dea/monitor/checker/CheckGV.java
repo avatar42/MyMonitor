@@ -102,7 +102,7 @@ public class CheckGV extends CheckUrl {
 	public static void main(String[] args) {
 		CheckGV item = new CheckGV();
 		item.setSaveImage(false);
-		item.loadBundle("GVA");
+		item.loadBundle(args[0]);
 		Thread thread = item.background();
 
 		while (thread.isAlive()) {

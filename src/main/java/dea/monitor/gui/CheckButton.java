@@ -73,7 +73,7 @@ public class CheckButton extends JButton implements MouseListener {
 			JPanel parent) {
 		this(item, 1.0f, NULL_CHAR, false, statusLog, false, parent);
 		// setText(item.getName());
-		// setToolTipText(item.getDecription());
+		// setToolTipText(item.getDescription());
 		// setVisible(true);
 
 	}

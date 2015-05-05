@@ -1,10 +1,12 @@
 package dea.monitor.checker;
 
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.ResourceBundle;
+import java.util.StringTokenizer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,9 +41,17 @@ public abstract class CheckBase implements CheckItemI {
 		loadBundle();
 	}
 
+	/**
+	 * Get value from bundle. Supported types are Integer, Long, Boolean or
+	 * ArrayList<String>
+	 * 
+	 * @param asClass
+	 * @param key
+	 * @param defaultValue
+	 * @return
+	 */
 	@SuppressWarnings("unchecked")
-	protected <T> T getBundleVal(Class<T> asClass, String key,
-			Object defaultValue) {
+	protected <T> T getBundleVal(Class<T> asClass, String key, T defaultValue) {
 		if (bundle.containsKey(key)) {
 			try {
 				if (Integer.class.isAssignableFrom(asClass))
@@ -55,6 +65,16 @@ public abstract class CheckBase implements CheckItemI {
 
 				if (String.class.isAssignableFrom(asClass))
 					return (T) bundle.getString(key);
+
+				if (ArrayList.class.isAssignableFrom(asClass)) {
+					String tmp = bundle.getString(key);
+					ArrayList<String> rtn = new ArrayList<String>();
+					if (tmp != null) {
+						StringTokenizer st = new StringTokenizer(tmp, ",");
+						rtn.add(st.nextToken().trim());
+					}
+					return (T) rtn;
+				}
 
 			} catch (Exception e) {
 				log.error("Failed to parse " + key + ":"
@@ -77,17 +97,11 @@ public abstract class CheckBase implements CheckItemI {
 	}
 
 	protected void setState(String errStr) {
-		if (errStr == null) {
-			log.info(getName() + " passed");
-			lastOK = new Date();
-			lastRunOK = true;
-		} else {
+		log.debug("setState(" + errStr + ")");
+		if (errStr != null) {
 			this.errStr = errStr;
-			log.info(getName() + " failed");
-			lastRunOK = false;
-
 		}
-
+		setState(errStr == null);
 	}
 
 	protected void setState(boolean b) {
