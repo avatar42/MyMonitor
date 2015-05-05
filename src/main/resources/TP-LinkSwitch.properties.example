@@ -1,0 +1,8 @@
+## Check Blue Iris 4 web server is up
+region = Bridge
+description = TL-SG1024DE rack mounted switch
+httpsURL = http://192.168.1.4/SystemInfoRpm.htm
+login=admin
+password=password
+## Find the mac address of the switch on the main page
+checkString=c4:6e:1f:dd:91:44
