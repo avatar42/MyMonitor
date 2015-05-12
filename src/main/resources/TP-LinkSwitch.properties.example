@@ -1,6 +1,12 @@
-## Check Blue Iris 4 web server is up
+## Check TL-SG1024DE rack mounted switch is up
 region = Bridge
 description = TL-SG1024DE rack mounted switch
+urlMethod=GET
+loginURL= http://192.168.1.4/logon.cgi
+login.name=username
+login.password=password
+login.parms=
+sessionKey=
 httpsURL = http://192.168.1.4/SystemInfoRpm.htm
 login=admin
 password=password
