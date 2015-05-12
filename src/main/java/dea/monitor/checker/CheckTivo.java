@@ -113,6 +113,7 @@ public class CheckTivo extends CheckUrl {
 		ignoreRespCode = true;
 		running = true;
 		log.info("reading url:" + httpsURL);
+		int shortCnt = 0;
 		for (int i = 0; i < retries; i++) {
 			try {
 				String xml = getUrl();
@@ -192,7 +193,9 @@ public class CheckTivo extends CheckUrl {
 									// if recorded short more than maxShort of
 									// show run time
 									if (recordSecs + maxShort < showSecs) {
-										errMsg.append(title)
+										shortCnt++;
+										detailsSb
+												.append(title)
 												.append(" short ")
 												.append((showSecs - recordSecs) / 1000)
 												.append(" seconds")
@@ -230,10 +233,17 @@ public class CheckTivo extends CheckUrl {
 								}
 							}
 						}
-						if (errMsg.length() > 0)
+						if (shortCnt > 0) {
+							errMsg.append(shortCnt)
+									.append(" shows are short\n");
+
+						}
+						if (errMsg.length() > 0) {
 							setErrStr(errMsg.toString());
-						else
+							setDetails(detailsSb.toString());
+						} else {
 							setErrStr(null);
+						}
 						break;
 					} catch (Exception e) {
 						setErrStr("Caught exception parsing XML", e);
