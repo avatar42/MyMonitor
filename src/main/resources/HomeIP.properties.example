@@ -1,0 +1,6 @@
+## check to see if your external IP has changed
+region = Bridge
+httpsURL = http://www.realip.info/api/p/realip.php
+#seconds
+wait=300
+checkString=24.28.67.140
