@@ -298,17 +298,17 @@ public class CheckUrl extends CheckBase {
 			respHeaders = response.getAllHeaders();
 			for (Header header : respHeaders) {
 				log.info(header.getName() + ":" + header.getValue());
-				if (header.getName().equals("Last-Modified")) {
+				if (header.getName().equalsIgnoreCase("Last-Modified")) {
 					modDate = parseDate(header.getValue());
-				} else if (header.getName().equals("Content-Length")) {
+				} else if (header.getName().equalsIgnoreCase("Content-Length")) {
 					len = new Long(header.getValue());
-				} else if (header.getName().equals("Content-Type")) {
+				} else if (header.getName().equalsIgnoreCase("Content-Type")) {
 					contentType = header.getValue();
-				} else if (header.getName().equals(sessionKeyParam)) {
+				} else if (header.getName().equalsIgnoreCase(sessionKeyParam)) {
 					sessionId = header.getValue();
-				} else if (header.getName().equals("Date")) {
+				} else if (header.getName().equalsIgnoreCase("Date")) {
 					modDate = parseDate(header.getValue());
-				} else if (header.getName().equals("Location")) {
+				} else if (header.getName().equalsIgnoreCase("Location")) {
 					// if (respCode == HttpURLConnection.HTTP_MOVED_TEMP) {
 					// URL oldUrl = httpsURL;
 					// try {
