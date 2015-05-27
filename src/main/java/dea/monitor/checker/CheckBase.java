@@ -243,12 +243,6 @@ public abstract class CheckBase implements CheckItemI {
 		builder.append(lastRunOK);
 		builder.append(", errStr=");
 		builder.append(errStr);
-		builder.append(", details=");
-		if (contentType != null && contentType.toLowerCase().contains("text")) {
-			builder.append(details);
-		} else {
-			builder.append("not text");
-		}
 		builder.append(", bundle=");
 		builder.append(bundle);
 		builder.append(", running=");
@@ -257,6 +251,12 @@ public abstract class CheckBase implements CheckItemI {
 		builder.append(thread);
 		builder.append(", contentType=");
 		builder.append(contentType);
+		builder.append(", details=");
+		if (contentType != null && contentType.toLowerCase().contains("text")) {
+			builder.append(details);
+		} else {
+			builder.append("not text");
+		}
 		builder.append("]");
 		return builder.toString();
 	}
