@@ -1,0 +1,9 @@
+## Trendnet IP672WI example
+region = RMRR42
+description = IP672WI - Entry way 
+httpsURL = http://192.168.1.15/image/jpeg.cgi
+# in bytes
+minSize=10240
+login=admin
+password=admin
+authType= Digest
