@@ -1,0 +1,15 @@
+## run a command on a remote machine / device and check the output of the command for a string
+## This example is for a Unifi access point.
+region = Bridge
+#seconds
+wait=1800
+## From the Status line (URL is where Unifi central monitor is running)
+checkString=Connected (http://192.168.1.191:8080/inform)
+## Username of ssh account on remote machine
+user = admin
+## Hostname or IP of the remote machine (eg:inst.eecs.berkeley.edu)
+host = 192.168.1.8
+## Password associated with your ssh account
+password = password
+## Remote command
+command = mca-cli-op info\n

@@ -1,7 +1,7 @@
-region = WiFi
-description = Foscam PTL - Living room looking west
-httpsURL=http://192.168.1.22:88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=admin&pwd=admin
-timeout=60000
+## Foscam FI8918W example
+region = Barn
+description = EasyN PTL - Barn
+httpsURL = http://192.168.1.18:80/snapshot.cgi
 # in bytes
 minSize=10240
 login=admin
