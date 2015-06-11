@@ -202,6 +202,11 @@ public abstract class CheckBase implements CheckItemI {
 		this.details = details;
 	}
 
+	public void setDetailsAsHtml(String details) {
+
+		this.details = details.replaceAll("\n", "<br>");
+	}
+
 	public String getContentType() {
 		return contentType;
 	}
@@ -259,6 +264,31 @@ public abstract class CheckBase implements CheckItemI {
 		}
 		builder.append("]");
 		return builder.toString();
+	}
+
+	/**
+	 * Generic command line method to be called from main in checkers
+	 * 
+	 * @param args
+	 */
+	public void cmd(String[] args) {
+		if (args.length > 0) {
+			loadBundle(args[0]);
+			Thread thread = background();
+
+			while (thread.isAlive()) {
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			log.info("done:" + getErrStr());
+			log.info("end:" + toString());
+		} else {
+			log.error("Usage: " + getClass().getName() + " bundleName");
+		}
+
 	}
 
 }

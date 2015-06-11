@@ -1,14 +1,25 @@
 package dea.monitor.checker;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URLConnection;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpMessage;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.HttpGet;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
 /**
@@ -22,35 +33,100 @@ public class CheckOwl extends CheckUrl {
 
 	public void loadBundle() {
 		super.loadBundle();
+		ignoreRespCode = true;
 	}
 
 	protected String executeRequest() {
 		String responseStr = null;
 
 		try {
-			HttpMessage request = new HttpGet(new URI(httpsURL.toString()));
+			HttpPost httpGet = new HttpPost(new URI(httpsURL.toString()));
 
 			// If we get an HTTP 401 Unauthorized with
 			// a challenge to solve.
-			HttpResponse response = execute((HttpUriRequest) request, context);
-			if (respCode == -1) {
-				HttpEntity entity = response.getEntity();
-				if (entity != null) {
-					if (contentType.contains("text")) {
-						responseStr = EntityUtils.toString(entity);
-						log.info("responseStr:" + responseStr);
-					} else if (contentType.contains(OWL_CONTENT_TYPE)) {
-						responseStr = EntityUtils.toString(entity);
-						log.info("responseStr:" + responseStr);
-					} else {
-						responseStr = "content type:" + contentType;
+			// HttpResponse response = execute((HttpUriRequest) request,
+			// context);
+			final HttpUriRequest request = (HttpUriRequest) httpGet;
+			httpclient = HttpClients
+					.custom()
+					.setUserAgent(
+							"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.81 Safari/537.36")
+					.build();
+			// .setDefaultCookieStore(cookieStore)
+			// Add your Data
+			final List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(
+					6);
+			nameValuePairs
+					.add(new BasicNameValuePair("Accept: ",
+							"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"));
+			nameValuePairs.add(new BasicNameValuePair("Accept-Encoding: ",
+					"gzip, deflate, sdch"));
+			nameValuePairs.add(new BasicNameValuePair("Accept-Language: ",
+					"en-US,en;q=0.8"));
+			// nameValuePairs.add(new BasicNameValuePair("Content-Length: ",
+			// "6"));
+
+			httpGet.setEntity(new UrlEncodedFormEntity(nameValuePairs));
+
+			log.info("Doing " + request.getMethod() + " to " + request.getURI());
+			checkHeaders(request);
+			// Create a custom response handler
+			ResponseHandler<String> responseHandler = new ResponseHandler<String>() {
+
+				@Override
+				public String handleResponse(final HttpResponse response)
+						throws ClientProtocolException, IOException {
+					int status = response.getStatusLine().getStatusCode();
+					try {
+						checkHeaders(response, request.getURI());
+					} catch (ParseException e) {
+						throw new IOException(e);
 					}
-					EntityUtils.consume(entity);
+					respCode = response.getStatusLine().getStatusCode();
+
+					if (respCode == -1) {
+						HttpEntity entity = response.getEntity();
+						String responseStr = null;
+						if (entity != null) {
+							if (contentType.contains("text")) {
+								responseStr = EntityUtils.toString(entity);
+								log.info("responseStr:" + responseStr);
+							} else if (contentType.contains(OWL_CONTENT_TYPE)) {
+								responseStr = EntityUtils.toString(entity);
+								log.info("responseStr:" + responseStr);
+							} else {
+								responseStr = "content type:" + contentType;
+							}
+							EntityUtils.consume(entity);
+						}
+					}
+					if (status >= 200 && status < 300) {
+						HttpEntity entity = response.getEntity();
+						return entity != null ? EntityUtils.toString(entity)
+								: null;
+					} else {
+						throw new ClientProtocolException(
+								"Unexpected response status: " + status);
+					}
 				}
-			}
+
+			};
+			responseStr = httpclient.execute(request, responseHandler);
 		} catch (Exception e) {
 			setErrStr("Failed reading URL", e);
 			respCode = HttpStatus.SC_GATEWAY_TIMEOUT;
+			try {
+				URLConnection conHand = httpsURL.openConnection();
+				String type = conHand.getContentType();
+				if (type == null)
+					type = "unknown";
+
+				log.debug("type:" + type);
+				responseStr = getUrlContentAsString((HttpURLConnection) conHand);
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
 		} finally {
 			shutdownClient();
 		}
@@ -111,19 +187,7 @@ public class CheckOwl extends CheckUrl {
 	 */
 	public static void main(String[] args) {
 		CheckOwl item = new CheckOwl();
-		item.loadBundle("Zhuhai");
-		Thread thread = item.background();
-
-		while (thread.isAlive()) {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		item.log.info("done:" + item.getErrStr());
-		item.log.info("end:" + item.toString());
-
+		item.cmd(args);
 	}
 
 }

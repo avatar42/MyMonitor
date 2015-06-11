@@ -109,19 +109,7 @@ public class CheckLog4j extends CheckBase implements MultiCheckI<CheckLogItem> {
 	public static void main(String[] args) {
 		CheckLog4j item = new CheckLog4j();
 		item.setStartAtEndOfLog(false);
-		item.loadBundle("TCP");
-		Thread thread = item.background();
-
-		while (thread.isAlive()) {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		item.log.info("done:" + item.getErrStr());
-		item.log.info("end:" + item.toString());
-
+		item.cmd(args);
 	}
 
 	public class MyTailerListener extends TailerListenerAdapter {

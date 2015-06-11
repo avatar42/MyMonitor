@@ -284,7 +284,7 @@ public class CheckUrl extends CheckBase {
 		for (Header header : respHeaders) {
 			log.info(header.getName() + ":" + header.getValue());
 		}
-		log.info(getCookies(request.getURI()));
+		log.info("Cookies:" + getCookies(request.getURI()));
 	}
 
 	/**
@@ -829,7 +829,6 @@ public class CheckUrl extends CheckBase {
 		byte[] authEncBytes = Base64.encodeBase64(authString.getBytes());
 		String authStringEnc = new String(authEncBytes);
 		log.info("Base64 encoded auth string: " + authStringEnc);
-
 		Authenticator.setDefault(new Authenticator() {
 			protected PasswordAuthentication getPasswordAuthentication() {
 				return new PasswordAuthentication(login, password.toCharArray());
@@ -1182,19 +1181,7 @@ public class CheckUrl extends CheckBase {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		CheckUrl item = new CheckUrl();
-		item.loadBundle(args[0]);
-		Thread thread = item.background();
-
-		while (thread.isAlive()) {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		item.log.info("done:" + item.getErrStr());
-		item.log.info("end:" + item.toString());
-
+		CheckBase item = new CheckUrl();
+		item.cmd(args);
 	}
 }
