@@ -1,0 +1,10 @@
+region = WiFi
+description = Foscam PTL - Living room looking west
+httpsURL=http://192.168.1.22:88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=admin&pwd=admin
+timeout=60000
+# in bytes
+minSize=10240
+login=admin
+password=admin
+## you can optionally save the image locally.
+#saveImage=true
