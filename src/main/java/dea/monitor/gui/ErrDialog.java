@@ -110,7 +110,7 @@ class ErrDialog extends JDialog {
 						.contains("text")) {
 					setDetails(TYPE_HTML, cb.getItem().getDetails());
 					// clear old data
-					cb.getItem().setDetails(null);
+					// cb.getItem().setDetails(null);
 				} else if (cb.getItem().getSavedImg() != null) {
 
 					StyledDocument doc = (StyledDocument) ep.getDocument();
