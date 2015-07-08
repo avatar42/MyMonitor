@@ -3,6 +3,9 @@ package dea.monitor.gui;
 import java.awt.BorderLayout;
 import java.awt.ComponentOrientation;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
@@ -17,6 +20,7 @@ import java.util.ResourceBundle;
 import java.util.Set;
 
 import javax.swing.AbstractAction;
+import javax.swing.BoxLayout;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -44,6 +48,8 @@ public class MonitorGUI {
 	public static final int RECHECK_ERRORS = 2;
 	public static final int CLEAR_ERRORS = 3;
 
+	public static final float PADDING_WIDTH = 20f;
+
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	private JFrame frame;
@@ -51,6 +57,8 @@ public class MonitorGUI {
 	private Set<String> regions = new HashSet<String>();
 	private ScrollingLogPane statusLog;
 	private Map<String, JPanel> rPanels = new HashMap<String, JPanel>();
+	private Map<String, JPanel> rGroups = new HashMap<String, JPanel>();
+	private Map<String, Integer> rWidths = new HashMap<String, Integer>();
 	private Map<String, CheckButton> buttons = new HashMap<String, CheckButton>();
 	private JMenuBar menuBar = new JMenuBar();
 	private ResourceBundle bundle;
@@ -129,9 +137,6 @@ public class MonitorGUI {
 		parseArgs(args);
 		frame = new JFrame("Server Monitor");
 		frame.setVisible(true); // so icon shows in tray
-		Dimension minimumSize = new Dimension(minWidth, minHeight);
-		frame.setMinimumSize(minimumSize);
-		frame.setPreferredSize(minimumSize);
 		Dimension maxSize = new Dimension(getBundleVal(Integer.class,
 				"width.max", 1920), getBundleVal(Integer.class, "height.max",
 				1080));
@@ -192,31 +197,76 @@ public class MonitorGUI {
 			JPanel rpane = new JPanel();
 			rpane.getAccessibleContext().setAccessibleName(region);
 			rpane.setBorder(ComponentHelper.getBorder(region));
+
 			rpane.setVisible(true);
 			rpane.setName(region);
-			minimumSize = new Dimension(minWidth / regions.size(), minHeight
-					- logHeight);
-			rpane.setMinimumSize(minimumSize);
-			rpane.setPreferredSize(minimumSize);
+			rpane.setLayout(new BorderLayout());
+			JPanel group = new JPanel();
+			rpane.add(group, BorderLayout.CENTER);
+			rGroups.put(region, group);
 			rPanels.put(region, rpane);
 		}
 
 		for (CheckItemI item : checks) {
-			JPanel rpane = rPanels.get(item.getRegion());
-			CheckButton b = new CheckButton(item, statusLog, rpane);
-			rpane.add(b);
+			JPanel group = rGroups.get(item.getRegion());
+			CheckButton b = new CheckButton(item, statusLog, group);
+			group.add(b);
 			buttons.put(item.getName(), b);
+			Graphics g = frame.getGraphics();
+			Font f = b.getFont();
+			// get metrics from the graphics
+			FontMetrics metrics = g.getFontMetrics(f);
+			// get the advance of my text in this font
+			// and render context
+			int bWidth = metrics.stringWidth(item.getName());
+			int rnWidth = metrics.stringWidth(item.getRegion());
+			if (rnWidth > bWidth)
+				bWidth = rnWidth;
+			log.debug("metrics.stringWidth(" + item.getName() + ")" + bWidth);
+			Double d = Math.ceil(bWidth + PADDING_WIDTH);
+			bWidth = d.intValue();
+			log.debug("adv with padding" + bWidth);
+			Integer rwidth = rWidths.get(item.getRegion());
+			if (rwidth == null || rwidth < bWidth) {
+				rWidths.put(item.getRegion(), bWidth);
+				group.setSize(bWidth, minHeight);
+			}
 		}
+
+		int wWidth = 0;
+		for (Integer rwidth : rWidths.values()) {
+			wWidth += rwidth;
+			wWidth += 4;
+		}
+		if (wWidth > minWidth) {
+			minWidth = wWidth;
+		}
+		Dimension minimumSize = new Dimension(minWidth + (2 * rWidths.size()),
+				minHeight);
+		frame.setMinimumSize(minimumSize);
+		frame.setPreferredSize(minimumSize);
 
 		GridBagConstraints c = new GridBagConstraints();
 		// natural height, maximum width
 		c.fill = GridBagConstraints.HORIZONTAL + GridBagConstraints.VERTICAL;
 
-		c.weightx = 0.5;
 		c.gridx = 0;
 		c.gridy = 0;
 
-		for (JPanel rpane : rPanels.values()) {
+		for (String key : rPanels.keySet()) {
+			JPanel rpane = rPanels.get(key);
+			Integer rwidth = rWidths.get(key);
+			if (rwidth == null)
+				rwidth = 1;
+			c.weightx = wWidth / rwidth;
+			if (c.weightx <= 1) {
+				log.error("total width:" + wWidth + " panel width:" + rwidth);
+				c.weightx = 1;
+			}
+
+			minimumSize = new Dimension(rwidth, minHeight - logHeight);
+			rpane.setMinimumSize(minimumSize);
+			// rpane.setPreferredSize(minimumSize);
 			pane.add(rpane, c);
 			c.gridx++;
 		}
