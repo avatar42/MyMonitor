@@ -36,7 +36,7 @@ public class CheckOwl extends CheckUrl {
 		ignoreRespCode = true;
 	}
 
-	protected String executeRequest() {
+	protected String executeRequest(String url) {
 		String responseStr = null;
 
 		try {
@@ -138,7 +138,7 @@ public class CheckOwl extends CheckUrl {
 		running = true;
 		log.info("reading url:" + httpsURL);
 		for (int i = 0; i < retries; i++) {
-			String s = executeRequest();
+			String s = executeRequest(httpsURL);
 
 			if (respCode == -1) {
 				setDetails(s);

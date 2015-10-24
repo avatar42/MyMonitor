@@ -20,7 +20,7 @@ public class CheckIris extends CheckUrl {
 		running = true;
 		log.info("reading url:" + httpsURL);
 		for (int i = 0; i < retries; i++) {
-			String s = executeRequest();
+			String s = executeRequest(httpsURL);
 
 			if (respCode == HttpURLConnection.HTTP_OK
 					|| respCode == HttpURLConnection.HTTP_MOVED_TEMP) {

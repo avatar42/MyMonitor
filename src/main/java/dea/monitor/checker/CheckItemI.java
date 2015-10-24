@@ -17,7 +17,8 @@ public interface CheckItemI extends Runnable {
 
 	void setNextRun(GregorianCalendar nextRun);
 
-	void loadBundle(String bundleName);
+	void loadBundle(String bundleName) throws ClassNotFoundException,
+			InstantiationException, IllegalAccessException;
 
 	boolean isRunning();
 

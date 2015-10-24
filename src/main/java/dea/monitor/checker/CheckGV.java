@@ -43,7 +43,7 @@ public class CheckGV extends CheckUrl {
 					}
 
 				}
-				String s = executeRequest();
+				String s = executeRequest(httpsURL);
 
 				if (respCode == HttpURLConnection.HTTP_OK && checkResponse(s)) {
 					setDetails(s);

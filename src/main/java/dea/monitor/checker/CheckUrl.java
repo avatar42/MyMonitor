@@ -141,7 +141,7 @@ public class CheckUrl extends CheckBase {
 	protected SimpleDateFormat headerDateFormat = new SimpleDateFormat(
 			"dd MMM yyyy HH:mm:ss zzz");
 
-	protected String userAgentString = "Mozilla/5.0 (Windows; U; MSIE 9.0; WIndows NT 9.0; en-US))";
+	protected String userAgentString = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36";
 	protected HttpContext context = new BasicHttpContext();
 
 	public CheckUrl() {
@@ -275,8 +275,7 @@ public class CheckUrl extends CheckBase {
 	}
 
 	/**
-	 * Get Last-Modified and Content-Length from headers. Prints headers at info
-	 * log level
+	 * Prints headers at info log level
 	 */
 	protected void checkHeaders(HttpUriRequest request) throws ParseException {
 		log.info("HttpUriRequest:");
@@ -707,11 +706,11 @@ public class CheckUrl extends CheckBase {
 		}
 	}
 
-	protected String executeRequest() {
+	protected String executeRequest(URL url) {
 		String responseStr = null;
 
 		try {
-			HttpUriRequest request = initRequest(httpsURL.toString());
+			HttpUriRequest request = initRequest(url.toString());
 			// If we get an HTTP 401 Unauthorized with
 			// a challenge to solve.
 			HttpResponse response = execute(request, context);
@@ -972,7 +971,7 @@ public class CheckUrl extends CheckBase {
 					setState("Login failed");
 
 				} else {
-					String s = executeRequest();
+					String s = executeRequest(httpsURL);
 					log.info(s);
 					if (respCode == HttpURLConnection.HTTP_OK
 							|| respCode == HttpURLConnection.HTTP_FORBIDDEN) {
@@ -996,6 +995,16 @@ public class CheckUrl extends CheckBase {
 
 			}
 		}
+		// if the check failed and we have a reset URL run it before second
+		// check. But run it only once per cycle
+		if (reset != null && !foundString) {
+			try {
+				reset.doReset(getName());
+			} catch (ClassNotFoundException | InstantiationException
+					| IllegalAccessException e) {
+				setDetails("Reset failed:" + e.getMessage());
+			}
+		}
 		setState(foundString);
 		running = false;
 		log.warn("read url");
@@ -1005,21 +1014,29 @@ public class CheckUrl extends CheckBase {
 		return log;
 	}
 
-	public void loadBundle() {
-		String url = getBundleVal(String.class, "httpsURL", null);
-		try {
-			httpsURL = new URL(url);
-		} catch (MalformedURLException e) {
-			setErrStr("httpsURL is not a valid url:" + url, e);
-		}
-		url = getBundleVal(String.class, "loginURL", null);
+	protected URL getURL(String key) {
+		return getURL(key, null);
+	}
+
+	protected URL getURL(String key, String parm) {
+		URL rtn = null;
+		String url = getBundleVal(String.class, key, null);
 		if (url != null) {
+			if (parm != null) {
+				url += parm;
+			}
 			try {
-				loginURL = new URL(url);
+				rtn = new URL(url);
 			} catch (MalformedURLException e) {
-				setErrStr("httpsURL is not a valid url:" + url, e);
+				setErrStr(key + " is not a valid url:" + url, e);
 			}
 		}
+		return rtn;
+	}
+
+	public void loadBundle() {
+		httpsURL = getURL("httpsURL");
+		loginURL = getURL("loginURL");
 		loginNameParam = getBundleVal(String.class, "login.name", null);
 		loginPasswordParam = getBundleVal(String.class, "login.password", null);
 		loginParam = getBundleVal(String.class, "login.parms", null);

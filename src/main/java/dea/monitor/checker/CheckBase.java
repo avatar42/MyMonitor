@@ -11,6 +11,8 @@ import java.util.StringTokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import dea.monitor.reset.ResetI;
+
 public abstract class CheckBase implements CheckItemI {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -30,14 +32,22 @@ public abstract class CheckBase implements CheckItemI {
 	protected BufferedImage savedImg;
 	protected boolean mutliCheck = false;
 
+	protected ResetI reset;
+
 	protected abstract void loadBundle();
 
-	public void loadBundle(String bundleName) {
+	public void loadBundle(String bundleName) throws ClassNotFoundException,
+			InstantiationException, IllegalAccessException {
 		bundle = ResourceBundle.getBundle(bundleName);
 		name = bundleName;
 		wait = getBundleVal(Integer.class, "wait", wait);
 		description = getBundleVal(String.class, "description", name);
 		region = getBundleVal(String.class, "region", region);
+		String clsStr = getBundleVal(String.class, "reset.class", null);
+		if (clsStr != null) {
+			Class<?> hiClass = Class.forName(clsStr);
+			reset = (ResetI) hiClass.newInstance();
+		}
 		loadBundle();
 	}
 
@@ -266,6 +276,11 @@ public abstract class CheckBase implements CheckItemI {
 		return builder.toString();
 	}
 
+	public void usage() {
+		System.err.println("Usage: " + getClass().getName() + " bundleName");
+
+	}
+
 	/**
 	 * Generic command line method to be called from main in checkers
 	 * 
@@ -273,20 +288,25 @@ public abstract class CheckBase implements CheckItemI {
 	 */
 	public void cmd(String[] args) {
 		if (args.length > 0) {
-			loadBundle(args[0]);
-			Thread thread = background();
+			try {
+				loadBundle(args[0]);
+				Thread thread = background();
 
-			while (thread.isAlive()) {
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+				while (thread.isAlive()) {
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
 				}
+			} catch (Exception e) {
+				usage();
+				log.error("Failed to create checker", e);
 			}
 			log.info("done:" + getErrStr());
 			log.info("end:" + toString());
 		} else {
-			log.error("Usage: " + getClass().getName() + " bundleName");
+			usage();
 		}
 
 	}
