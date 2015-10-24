@@ -1,6 +1,14 @@
 region = Home
 description=Read current mode from home hub
-httpsURL = http://192.168.1.206:3480/data_request?id=variableget&Variable=Mode
+## checks that we can read the current mode of the Vera at 192.168.1.87
+httpsURL = http://192.168.1.87:3480/data_request?id=variableget&Variable=Mode
 #seconds
 wait=1800
 regexString=[1-4]
+## quick fix settings (Note this assumes a second Vera at 192.168.1.80)
+reset.class=dea.monitor.reset.ResetVeraDevice
+reset.Url = http://192.168.1.80:3480/data_request?id=action&output_format=xml&DeviceNum=3&serviceId=urn:upnp-org:serviceId:SwitchPower1&action=SetTarget&newTargetValue=
+## seconds to wait after reset before restart
+reset.pause=2
+## seconds to wait after reset before recheck
+reset.wait=60
