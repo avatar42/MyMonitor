@@ -44,6 +44,7 @@ import javax.imageio.ImageIO;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
@@ -65,6 +66,10 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.SSLContextBuilder;
+import org.apache.http.conn.ssl.TrustStrategy;
+import org.apache.http.conn.ssl.X509HostnameVerifier;
 import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.auth.DigestScheme;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -113,6 +118,7 @@ public class CheckUrl extends CheckBase {
 	protected String authType = "Basic";
 	protected int timeout = 15000; // in milisecs
 	protected String checkString = null;
+	protected String failString = null;
 	protected Pattern pattern = null;
 	protected Boolean followRedirects = false;
 	protected boolean saveImage = false;
@@ -325,15 +331,19 @@ public class CheckUrl extends CheckBase {
 		log.info(getCookies(uri));
 	}
 
-	protected boolean isHttps() {
-		return (httpsURL != null && httpsURL.getProtocol().equals("https"));
+	protected boolean isHttps(URL url) {
+		return (url != null && url.getProtocol().equals("https"));
 	}
 
 	private void initSSL() {
-		if (isHttps()) {
+		initSSL(httpsURL);
+	}
+
+	private void initSSL(URL url) {
+		if (isHttps(url)) {
 			log.info("Adding SSL settings");
 			// setKeystore();
-			HttpsVerifier.addHost(httpsURL.getHost());
+			HttpsVerifier.addHost(url.getHost());
 
 			HttpsURLConnection.setDefaultHostnameVerifier(HttpsVerifier
 					.getInstance());
@@ -517,13 +527,69 @@ public class CheckUrl extends CheckBase {
 	 * @throws ClientProtocolException
 	 * @throws IOException
 	 * @throws ParseException
+	 * @throws NoSuchAlgorithmException
+	 * @throws KeyStoreException
+	 * @throws KeyManagementException
 	 */
 	protected HttpResponse execute(HttpUriRequest request, HttpContext context)
-			throws ClientProtocolException, IOException, ParseException {
+			throws ClientProtocolException, IOException, ParseException,
+			NoSuchAlgorithmException, KeyManagementException, KeyStoreException {
 		HttpResponse response = null;
-		httpclient = HttpClients.custom().setUserAgent(userAgentString).build();
-		// .setDefaultCookieStore(cookieStore)
+		if (isHttps(request.getURI().toURL())) {
+			// Trust own CA and all self-signed certs
+			final SSLContext sslcontext = SSLContext.getDefault();
+			X509HostnameVerifier allowAllVerifer = new X509HostnameVerifier() {
 
+				@Override
+				public boolean verify(String hostname, SSLSession session) {
+					log.info("verify(String hostname,SSLSession session)");
+					return true;
+				}
+
+				@Override
+				public void verify(String host, SSLSocket ssl)
+						throws IOException {
+					log.info("verify(String host, SSLSocket ssl)");
+				}
+
+				@Override
+				public void verify(String host, X509Certificate cert)
+						throws SSLException {
+					log.info("verify(String host, X509Certificate cert)");
+				}
+
+				@Override
+				public void verify(String host, String[] cns,
+						String[] subjectAlts) throws SSLException {
+					log.info("verify(String host, String[] cns,\r\n"
+							+ "						String[] subjectAlts)");
+				}
+			};
+			final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(
+					sslcontext, allowAllVerifer);
+			httpclient = HttpClients
+					.custom()
+					.setUserAgent(userAgentString)
+					.setHostnameVerifier(allowAllVerifer)
+					.setSSLSocketFactory(sslsf)
+					.setSslcontext(
+							new SSLContextBuilder().loadTrustMaterial(
+									KeyStore.getInstance(KeyStore
+											.getDefaultType()),
+									new TrustStrategy() {
+										public boolean isTrusted(
+												X509Certificate[] arg0,
+												String arg1)
+												throws CertificateException {
+											log.info("isTrusted(X509Certificate[] arg0,String arg1)");
+											return true;
+										}
+									}).build()).build();
+		} else {
+			httpclient = HttpClients.custom().setUserAgent(userAgentString)
+					.build();
+			// .setDefaultCookieStore(cookieStore)
+		}
 		log.info("Doing " + request.getMethod() + " to " + request.getURI());
 		checkHeaders(request);
 		response = httpclient.execute(request); // , context);
@@ -581,6 +647,7 @@ public class CheckUrl extends CheckBase {
 		HttpResponse response = null;
 		String responseStr = null;
 		if (loginURL != null) {
+			initSSL(loginURL);
 			try {
 				HttpPost request = new HttpPost(new URI(loginURL.toString()));
 				List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
@@ -620,7 +687,9 @@ public class CheckUrl extends CheckBase {
 						}
 					}
 				}
-			} catch (URISyntaxException | IOException | ParseException e) {
+			} catch (URISyntaxException | IOException | ParseException
+					| NoSuchAlgorithmException | KeyManagementException
+					| KeyStoreException e) {
 				setErrStr("Failed posting URL", e);
 			} finally {
 				shutdownClient();
@@ -926,6 +995,12 @@ public class CheckUrl extends CheckBase {
 				setErrStr("Failed to find:" + checkString + " in response");
 			}
 		}
+		if (failString != null) {
+			foundString = s.indexOf(failString) < 0;
+			if (!foundString) {
+				setErrStr("Found:" + failString + " in response");
+			}
+		}
 		if (pattern != null) {
 			Matcher matcher = pattern.matcher(s);
 			foundString = matcher.find();
@@ -1047,6 +1122,7 @@ public class CheckUrl extends CheckBase {
 		password = getBundleVal(String.class, "password", password);
 		timeout = getBundleVal(Integer.class, "timeout", timeout);
 		checkString = getBundleVal(String.class, "checkString", checkString);
+		failString = getBundleVal(String.class, "failString", failString);
 		urlMethod = getBundleVal(String.class, "urlMethod", HttpGet.METHOD_NAME);
 
 		String regexString = getBundleVal(String.class, "regexString", null);
