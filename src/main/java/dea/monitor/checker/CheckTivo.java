@@ -44,11 +44,13 @@ public class CheckTivo extends CheckUrl {
 	// it appears the report data can be up to 5 minutes out of date so add this
 	// amount of allowable error.
 	private long deviation = 5 * 60 * 1000;
+	private boolean saveNPL = false;
 
 	public void loadBundle() {
 		super.loadBundle();
 		minSize = getBundleVal(Integer.class, "minSize", minSize);
 		maxShort = getBundleVal(Long.class, "maxShort", maxShort);
+		saveNPL = getBundleVal(Boolean.class, "saveNPL", saveNPL);
 	}
 
 	public NodeList getNodeList(XPath xpath, Document doc, String expr) {
@@ -114,6 +116,9 @@ public class CheckTivo extends CheckUrl {
 		running = true;
 		log.info("reading url:" + httpsURL);
 		int shortCnt = 0;
+		if (saveNPL){
+			
+		}
 		for (int i = 0; i < retries; i++) {
 			try {
 				String xml = getUrl();
