@@ -10,6 +10,9 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -35,6 +38,8 @@ import org.slf4j.LoggerFactory;
 import dea.monitor.checker.CheckItemI;
 import dea.monitor.checker.ChildCheckItemI;
 import dea.monitor.checker.MultiCheckI;
+import dea.monitor.db.DBInterface;
+import dea.monitor.db.SQLiteDB;
 
 /**
  * Main window / run class for monitor TODO: add menu option the retry all in
@@ -64,8 +69,7 @@ public class MonitorGUI {
 	private ResourceBundle bundle;
 
 	@SuppressWarnings("unchecked")
-	protected <T> T getBundleVal(Class<T> asClass, String key,
-			Object defaultValue) {
+	protected <T> T getBundleVal(Class<T> asClass, String key, Object defaultValue) {
 		if (bundle.containsKey(key)) {
 			try {
 				if (Integer.class.isAssignableFrom(asClass))
@@ -78,8 +82,7 @@ public class MonitorGUI {
 					return (T) bundle.getString(key);
 
 			} catch (Exception e) {
-				log.error("Failed to parse " + key + ":"
-						+ bundle.getString(key));
+				log.error("Failed to parse " + key + ":" + bundle.getString(key));
 			}
 		}
 		log.warn("Using default value for " + key + ":" + defaultValue);
@@ -89,46 +92,78 @@ public class MonitorGUI {
 	public MonitorGUI() {
 		checks = new ArrayList<CheckItemI>();
 		bundle = ResourceBundle.getBundle("checks");
+		String dbPath = bundle.getString("db.path");
+		if (dbPath == null) {
+			for (String key : bundle.keySet()) {
+				if (key.startsWith("check.")) {
+					String className = bundle.getString(key);
+					try {
+						Class<?> hiClass = Class.forName(className);
+						CheckItemI instance = (CheckItemI) hiClass.newInstance();
+						instance.loadBundle(key.substring(6));
+						if (instance.isMutliCheck()) {
+							for (ChildCheckItemI child : ((MultiCheckI<?>) instance).getChecks().values()) {
+								checks.add(child);
+							}
 
-		for (String key : bundle.keySet()) {
-			if (key.startsWith("check.")) {
-				String className = bundle.getString(key);
-				try {
-					Class<?> hiClass = Class.forName(className);
-					CheckItemI instance = (CheckItemI) hiClass.newInstance();
-					instance.loadBundle(key.substring(6));
-					if (instance.isMutliCheck()) {
-						for (ChildCheckItemI child : ((MultiCheckI<?>) instance)
-								.getChecks().values()) {
-							checks.add(child);
+						} else {
+							checks.add(instance);
 						}
-
-					} else {
-						checks.add(instance);
+						instance.background();
+						regions.add(instance.getRegion());
+					} catch (Exception e) {
+						log.error("Failed to load:" + key, e);
 					}
-					instance.background();
-					regions.add(instance.getRegion());
-				} catch (Exception e) {
-					log.error("Failed to load:" + key, e);
-				}
-			} else if (key.startsWith("handler.")) {
-				String className = bundle.getString(key);
-				try {
-					Class<?> hiClass = Class.forName(className);
-					CheckItemI instance = (CheckItemI) hiClass.newInstance();
-					instance.loadBundle(key.substring(8));
-					checks.add(instance);
-					regions.add(instance.getRegion());
-				} catch (Exception e) {
-					log.error("Failed to load:" + key, e);
+				} else if (key.startsWith("handler.")) {
+					String className = bundle.getString(key);
+					try {
+						Class<?> hiClass = Class.forName(className);
+						CheckItemI instance = (CheckItemI) hiClass.newInstance();
+						instance.loadBundle(key.substring(8));
+						checks.add(instance);
+						regions.add(instance.getRegion());
+					} catch (Exception e) {
+						log.error("Failed to load:" + key, e);
+					}
 				}
 			}
+		} else { // used DB instead of prop files
+			DBInterface dbi;
+			try {
+				dbi = new SQLiteDB(dbPath);
+				Map<String, String> map = dbi.getChecks();
+				for (String name : map.keySet()) {
+					String className = map.get(name);
+					try {
+						Class<?> hiClass = Class.forName(className);
+						CheckItemI instance = (CheckItemI) hiClass.newInstance();
+						instance.setDbi(dbi);
+						instance.loadBundle(name);
+						if (instance.isMutliCheck()) {
+							for (ChildCheckItemI child : ((MultiCheckI<?>) instance).getChecks().values()) {
+								checks.add(child);
+							}
+
+						} else {
+							checks.add(instance);
+						}
+						instance.background();
+						regions.add(instance.getRegion());
+					} catch (Exception e) {
+						log.error("Failed to load:" + name, e);
+					}
+
+				}
+			} catch (SQLException e1) {
+				log.error("Failed connectiong to DB", e1);
+			}
+
 		}
 	}
 
 	/**
-	 * Create the GUI and show it. For thread safety, this method should be
-	 * invoked from the event-dispatching thread.
+	 * Create the GUI and show it. For thread safety, this method should be invoked
+	 * from the event-dispatching thread.
 	 */
 	private void buildGUI(String[] args) {
 		int minWidth = getBundleVal(Integer.class, "width.min", 800);
@@ -137,9 +172,8 @@ public class MonitorGUI {
 		parseArgs(args);
 		frame = new JFrame("Server Monitor");
 		frame.setVisible(true); // so icon shows in tray
-		Dimension maxSize = new Dimension(getBundleVal(Integer.class,
-				"width.max", 1920), getBundleVal(Integer.class, "height.max",
-				1080));
+		Dimension maxSize = new Dimension(getBundleVal(Integer.class, "width.max", 1920),
+				getBundleVal(Integer.class, "height.max", 1080));
 		frame.setMaximumSize(maxSize);
 
 		final JPanel mainPanel = new JPanel(new BorderLayout());
@@ -152,38 +186,29 @@ public class MonitorGUI {
 		// Build the first menu.
 		JMenu menu = new JMenu("Reset");
 		menu.setMnemonic(KeyEvent.VK_R);
-		menu.getAccessibleContext().setAccessibleDescription(
-				"Button reset options");
+		menu.getAccessibleContext().setAccessibleDescription("Button reset options");
 		menuBar.add(menu);
 
 		// reset options
-		JMenuItem menuItem = new JMenuItem(new ResetAction(RECHECK_ALL,
-				"Recheck All"));
+		JMenuItem menuItem = new JMenuItem(new ResetAction(RECHECK_ALL, "Recheck All"));
 		menuItem.setMnemonic(KeyEvent.VK_A);
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A,
-				ActionEvent.ALT_MASK));
-		menuItem.getAccessibleContext().setAccessibleDescription(
-				"Set all button to recheck now.");
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A, ActionEvent.ALT_MASK));
+		menuItem.getAccessibleContext().setAccessibleDescription("Set all button to recheck now.");
 
 		menu.add(menuItem);
 
-		menuItem = new JMenuItem(new ResetAction(RECHECK_ERRORS,
-				"Recheck Errors"));
+		menuItem = new JMenuItem(new ResetAction(RECHECK_ERRORS, "Recheck Errors"));
 		menuItem.setMnemonic(KeyEvent.VK_E);
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E,
-				ActionEvent.ALT_MASK));
-		menuItem.getAccessibleContext()
-				.setAccessibleDescription(
-						"Recheck all buttons in error status and clear error details on buttons that have recovered from an error.");
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E, ActionEvent.ALT_MASK));
+		menuItem.getAccessibleContext().setAccessibleDescription(
+				"Recheck all buttons in error status and clear error details on buttons that have recovered from an error.");
 
 		menu.add(menuItem);
 
 		menuItem = new JMenuItem(new ResetAction(CLEAR_ERRORS, "Clear Errors"));
 		menuItem.setMnemonic(KeyEvent.VK_C);
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C,
-				ActionEvent.ALT_MASK));
-		menuItem.getAccessibleContext().setAccessibleDescription(
-				"Remove error details from all buttons.");
+		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, ActionEvent.ALT_MASK));
+		menuItem.getAccessibleContext().setAccessibleDescription("Remove error details from all buttons.");
 
 		menu.add(menuItem);
 
@@ -241,8 +266,7 @@ public class MonitorGUI {
 		if (wWidth > minWidth) {
 			minWidth = wWidth;
 		}
-		Dimension minimumSize = new Dimension(minWidth + (2 * rWidths.size()),
-				minHeight);
+		Dimension minimumSize = new Dimension(minWidth + (2 * rWidths.size()), minHeight);
 		frame.setMinimumSize(minimumSize);
 		frame.setPreferredSize(minimumSize);
 
@@ -339,15 +363,13 @@ public class MonitorGUI {
 					if (cb.getState() == CheckButton.STATE_OK_WITH_ERR) {
 						cb.setState(CheckButton.STATE_ERR);
 					}
-					if (cb.getState() == CheckButton.STATE_ERR
-							|| cb.getState() == CheckButton.STATE_OK_WITH_ERR) {
+					if (cb.getState() == CheckButton.STATE_ERR || cb.getState() == CheckButton.STATE_OK_WITH_ERR) {
 						cb.setLastErr(null);
 						cb.getItem().setDetails(null);
 					}
 				}
 			}
-			System.out.println("Action [" + e.getActionCommand()
-					+ "] performed!");
+			System.out.println("Action [" + e.getActionCommand() + "] performed!");
 		}
 	}
 

@@ -328,7 +328,7 @@ public class CheckUrl extends CheckBase {
 		initSSL(httpsURL);
 	}
 
-	private void initSSL(URL url) {
+	protected void initSSL(URL url) {
 		if (isHttps(url)) {
 			log.info("Adding SSL settings");
 			// setKeystore();

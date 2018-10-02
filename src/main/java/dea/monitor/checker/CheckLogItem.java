@@ -9,6 +9,8 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import dea.monitor.db.DBInterface;
+
 public class CheckLogItem implements ChildCheckItemI {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -29,6 +31,7 @@ public class CheckLogItem implements ChildCheckItemI {
 	private String okMsg;
 	private GregorianCalendar nextRun;
 	protected String contentType = "text/text;";
+	protected DBInterface dbi;
 
 	// status params
 	private Date lastOK;
@@ -39,8 +42,8 @@ public class CheckLogItem implements ChildCheckItemI {
 	private final Object detailsLock = new Object();
 	private final Object errStrLock = new Object();
 
-	public CheckLogItem(String name, String description, String region,
-			String errRegex, String okRegex, String errMsg, String okMsg) {
+	public CheckLogItem(String name, String description, String region, String errRegex, String okRegex, String errMsg,
+			String okMsg) {
 		this.name = name;
 		this.description = description;
 		this.region = region;
@@ -55,6 +58,14 @@ public class CheckLogItem implements ChildCheckItemI {
 		// parent is actually doing the checks so just set this to next year
 		nextRun = new GregorianCalendar();
 		nextRun.add(Calendar.YEAR, 1);
+	}
+
+	public DBInterface getDbi() {
+		return dbi;
+	}
+
+	public void setDbi(DBInterface dbi) {
+		this.dbi = dbi;
 	}
 
 	@Override

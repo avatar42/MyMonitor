@@ -228,11 +228,11 @@ public class PortScanner {
 			}
 			log.info("time:" + (System.currentTimeMillis() - start)
 					+ " milsecs");
-			log.info("There are " + openPorts + " open ports on host " + ip
+			log.warn("There are " + openPorts + " open ports on host " + ip
 					+ " in the range of " + firstPort + " to " + lastPort
 					+ " (probed with a timeout of " + timeout + "ms)");
-			log.info("TCP open ports are:" + openTcp);
-			log.info("UDP open ports are:" + openUdp);
+			log.warn("TCP open ports are:" + openTcp.keySet());
+			log.warn("UDP open ports are:" + openUdp);
 		} else {
 			usage("IP of host not given");
 		}
