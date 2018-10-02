@@ -1,6 +1,7 @@
 package dea.monitor.checker;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -11,7 +12,9 @@ import java.util.StringTokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import dea.monitor.broadcast.BroadcastInterface;
 import dea.monitor.reset.ResetI;
+import twitter4j.JSONException;
 
 public abstract class CheckBase implements CheckItemI {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
@@ -31,13 +34,17 @@ public abstract class CheckBase implements CheckItemI {
 	protected String contentType = "text/text;";
 	protected BufferedImage savedImg;
 	protected boolean mutliCheck = false;
+	protected BroadcastInterface broadcast;
+	protected int broadcastID = 0;
+	protected Float broadcastStatusCode = BC_OFFLINE;
+	protected String broadcastStatusString = null;
 
 	protected ResetI reset;
 
 	protected abstract void loadBundle();
 
-	public void loadBundle(String bundleName) throws ClassNotFoundException,
-			InstantiationException, IllegalAccessException {
+	public void loadBundle(String bundleName)
+			throws ClassNotFoundException, InstantiationException, IllegalAccessException {
 		bundle = ResourceBundle.getBundle(bundleName);
 		name = bundleName;
 		wait = getBundleVal(Integer.class, "wait", wait);
@@ -47,6 +54,19 @@ public abstract class CheckBase implements CheckItemI {
 		if (clsStr != null) {
 			Class<?> hiClass = Class.forName(clsStr);
 			reset = (ResetI) hiClass.newInstance();
+		}
+		clsStr = getBundleVal(String.class, "broadcast.class", null);
+		if (clsStr != null) {
+			Class<?> hiClass = Class.forName(clsStr);
+			broadcast = (BroadcastInterface) hiClass.newInstance();
+			broadcastID = getBundleVal(Integer.class, "broadcast.id", 0);
+			if (broadcastID == 0) {
+				try {
+					broadcastID = broadcast.updateDevice(broadcastID, name, region);
+				} catch (UnsupportedOperationException | JSONException | IOException e) {
+					throw new InstantiationException(e.getMessage());
+				}
+			}
 		}
 		loadBundle();
 	}
@@ -87,8 +107,7 @@ public abstract class CheckBase implements CheckItemI {
 				}
 
 			} catch (Exception e) {
-				log.error("Failed to parse " + key + ":"
-						+ bundle.getString(key));
+				log.error("Failed to parse " + key + ":" + bundle.getString(key));
 			}
 		}
 		log.warn("Using default value for " + key + ":" + defaultValue);
@@ -104,6 +123,20 @@ public abstract class CheckBase implements CheckItemI {
 		thread.start();
 
 		return thread;
+	}
+
+	protected void broadcastStatus() {
+		if (broadcast != null && broadcastID > 0) {
+			try {
+				broadcast.sendVal(broadcastID, broadcastStatusCode);
+				broadcast.sendError(broadcastID, errStr);
+				broadcast.sendStatusString(broadcastID, errStr);
+				broadcast.sendDetails(broadcastID, details);
+			} catch (UnsupportedOperationException | IOException e) {
+				log.error("Failed sending status", e);
+				setState("Failed sending status");
+			}
+		}
 	}
 
 	protected void setState(String errStr) {
@@ -177,6 +210,7 @@ public abstract class CheckBase implements CheckItemI {
 
 	public void setErrStr(String errStr) {
 		this.errStr = errStr;
+		setState(errStr == null);
 	}
 
 	public void setErrStr(String errStr, Exception e) {

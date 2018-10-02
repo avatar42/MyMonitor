@@ -21,7 +21,7 @@ public class CheckGV extends CheckUrl {
 			if (rsp.contains("IDS_WEB_ID_PWD_ERROR")) {
 				setDetails(rsp);
 				setState("Login failed");
-
+				broadcastStatusCode = BC_LOGIN_FAILED;
 			} else {
 				// check old software type
 				int end = rsp.indexOf("</title>");
@@ -61,6 +61,7 @@ public class CheckGV extends CheckUrl {
 								+ minSize);
 					} else {
 						setState("respCode:" + respCode + " file empty");
+						broadcastStatusCode = BC_CONTENT_MISSING;
 					}
 					if (getConHeaders() != null) {
 						sb.append("Connection Headers:<br>");

@@ -1,3 +1,4 @@
+## use class dea.monitor.checker.CheckUrl
 region = Shop
 httpsURL = http://192.168.1.121/deviceslist.htm
 #seconds

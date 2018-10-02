@@ -1,0 +1,19 @@
+## EZcam example
+## use class dea.monitor.checker.CheckUrl
+region = Shop
+description = EZcam - Shop floor
+
+## standard 720p bullet cam
+httpsURL=http://192.168.1.27/Login.htm?command=login&username=admin&password=admin&langlist=1
+timeout=60000
+# in bytes
+minSize=10240
+checkString=<title>NetSurveillance</title>
+
+## QD900 1080p bullet cam
+httpsURL=http://192.168.1.27/web/cgi-bin/hi3510/param.cgi?cmd=getserverinfo&-encode&cmd=getnetinfo
+timeout=60000
+# in bytes
+minSize=10240
+checkString=C0:1E:60:FF:FF:FF
+

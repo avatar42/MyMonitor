@@ -83,6 +83,8 @@ import org.slf4j.Logger;
 
 import dea.monitor.tools.HttpsVerifier;
 import dea.monitor.tools.Utils;
+import twitter4j.JSONException;
+import twitter4j.JSONObject;
 
 /**
  * Check a URL to make sure it is readable. Needs keystore in working dir
@@ -99,8 +101,7 @@ public class CheckUrl extends CheckBase {
 	public static final String AUTH_DIGEST = "digest";
 	public static final String OWL_CONTENT_TYPE = "unknown/unknown";
 
-	public static final SimpleDateFormat fileDateTimeFmt = new SimpleDateFormat(
-			"yyMMdd@HHmmss");
+	public static final SimpleDateFormat fileDateTimeFmt = new SimpleDateFormat("yyMMdd@HHmmss");
 
 	// setable options
 	protected int retries = 2;
@@ -142,10 +143,8 @@ public class CheckUrl extends CheckBase {
 	// Create a local instance of cookie store
 	protected CookieStore cookieStore;
 
-	protected SimpleDateFormat headerDateFormatFull = new SimpleDateFormat(
-			"EEE, dd MMM yyyy HH:mm:ss zzz");
-	protected SimpleDateFormat headerDateFormat = new SimpleDateFormat(
-			"dd MMM yyyy HH:mm:ss zzz");
+	protected SimpleDateFormat headerDateFormatFull = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
+	protected SimpleDateFormat headerDateFormat = new SimpleDateFormat("dd MMM yyyy HH:mm:ss zzz");
 
 	protected String userAgentString = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36";
 	protected HttpContext context = new BasicHttpContext();
@@ -185,19 +184,14 @@ public class CheckUrl extends CheckBase {
 	/**
 	 * Get the first (usually only) header value for a given key
 	 * 
-	 * @param asClass
-	 *            Class type to return;
-	 * @param headers
-	 *            returned from URL
-	 * @param key
-	 *            to look for
-	 * @param defaultVal
-	 *            value to return if key not found.
+	 * @param asClass    Class type to return;
+	 * @param headers    returned from URL
+	 * @param key        to look for
+	 * @param defaultVal value to return if key not found.
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	protected <T> T getFirstHeader(Class<T> asClass,
-			Map<String, List<String>> headers, String key, Object defaultVal) {
+	protected <T> T getFirstHeader(Class<T> asClass, Map<String, List<String>> headers, String key, Object defaultVal) {
 		List<String> lms = headers.get(key);
 		if (lms != null && !lms.isEmpty()) {
 			try {
@@ -221,14 +215,12 @@ public class CheckUrl extends CheckBase {
 	/**
 	 * Read the contents of the url into a String
 	 * 
-	 * @param con
-	 *            open connection
+	 * @param con open connection
 	 * @return contents of page
 	 */
 	protected String getUrlContentAsString(HttpURLConnection con) {
 		StringBuilder sb = new StringBuilder();
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-				con.getInputStream()))) {
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream()))) {
 
 			String line = null;
 			while ((line = reader.readLine()) != null) {
@@ -244,19 +236,17 @@ public class CheckUrl extends CheckBase {
 	}
 
 	/**
-	 * Get Last-Modified and Content-Length from headers. Prints headers at info
-	 * log level
+	 * Get Last-Modified and Content-Length from headers. Prints headers at info log
+	 * level
 	 */
 	protected void checkHeaders(HttpURLConnection con) throws ParseException {
 		conHeaders = con.getHeaderFields();
 		for (String key : conHeaders.keySet()) {
-			log.info(key + ":" + conHeaders.get(key));
+			log.debug(key + ":" + conHeaders.get(key));
 		}
-		modDate = getFirstHeader(Date.class, conHeaders, "Last-Modified",
-				modDate);
+		modDate = getFirstHeader(Date.class, conHeaders, "Last-Modified", modDate);
 		len = getFirstHeader(Long.class, conHeaders, "Content-Length", len);
-		contentType = getFirstHeader(String.class, conHeaders, "Content-Type",
-				contentType);
+		contentType = getFirstHeader(String.class, conHeaders, "Content-Type", contentType);
 
 	}
 
@@ -293,11 +283,10 @@ public class CheckUrl extends CheckBase {
 	}
 
 	/**
-	 * Get Last-Modified and Content-Length from headers. Prints headers at info
-	 * log level
+	 * Get Last-Modified and Content-Length from headers. Prints headers at info log
+	 * level
 	 */
-	protected void checkHeaders(HttpResponse response, URI uri)
-			throws ParseException {
+	protected void checkHeaders(HttpResponse response, URI uri) throws ParseException {
 		log.info("HttpResponse:");
 		if (response != null) {
 			respHeaders = response.getAllHeaders();
@@ -345,20 +334,17 @@ public class CheckUrl extends CheckBase {
 			// setKeystore();
 			HttpsVerifier.addHost(url.getHost());
 
-			HttpsURLConnection.setDefaultHostnameVerifier(HttpsVerifier
-					.getInstance());
+			HttpsURLConnection.setDefaultHostnameVerifier(HttpsVerifier.getInstance());
 
 			// since most of the stuff we hit is self signed or expired just
 			// trust them
 			try {
 				final TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
-					public void checkClientTrusted(
-							final X509Certificate[] chain, final String authType)
+					public void checkClientTrusted(final X509Certificate[] chain, final String authType)
 							throws CertificateException {
 					}
 
-					public void checkServerTrusted(
-							final X509Certificate[] chain, final String authType)
+					public void checkServerTrusted(final X509Certificate[] chain, final String authType)
 							throws CertificateException {
 					}
 
@@ -369,13 +355,11 @@ public class CheckUrl extends CheckBase {
 				} };
 
 				final SSLContext sslContext = SSLContext.getInstance("SSL");
-				sslContext.init(null, trustAllCerts,
-						new java.security.SecureRandom());
+				sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
 				sslSocketFactory = sslContext.getSocketFactory();
 				Authenticator.setDefault(new Authenticator() {
 					protected PasswordAuthentication getPasswordAuthentication() {
-						return new PasswordAuthentication(login, password
-								.toCharArray());
+						return new PasswordAuthentication(login, password.toCharArray());
 					}
 				});
 			} catch (KeyManagementException | NoSuchAlgorithmException e) {
@@ -384,24 +368,51 @@ public class CheckUrl extends CheckBase {
 		}
 	}
 
-	protected void tryTlsPlusCertInstall(HttpURLConnection con, Exception e)
-			throws KeyManagementException, KeyStoreException,
-			NoSuchAlgorithmException, CertificateException, IOException {
-		if (httpsURL.getProtocol().equals("https") && keyFile != null) {
-			log.error("Trying to install cert as last final option", e);
-			int port = httpsURL.getPort();
-			if (port == -1)
-				port = httpsURL.getDefaultPort();
+	/**
+	 * @deprecated Use tryTlsPlusCertInstall(HttpURLConnection con, URL url,
+	 *             Exception e)
+	 * @param con
+	 * @param e
+	 * @throws KeyManagementException
+	 * @throws KeyStoreException
+	 * @throws NoSuchAlgorithmException
+	 * @throws CertificateException
+	 * @throws IOException
+	 */
+	protected void tryTlsPlusCertInstall(HttpURLConnection con, Exception e) throws KeyManagementException,
+			KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
+		tryTlsPlusCertInstall(con, httpsURL, e);
+	}
 
-			// SSLSocketFactory sf = install(httpsURL.getHost(), port, keyPass,
+	/**
+	 * Try to install cert in app's keyFile as last final option to get secure
+	 * connection
+	 * 
+	 * @param con connection we are trying to fix
+	 * @param url associated with con
+	 * @param e   Exception that triggered this work around
+	 * @throws KeyManagementException
+	 * @throws KeyStoreException
+	 * @throws NoSuchAlgorithmException
+	 * @throws CertificateException
+	 * @throws IOException
+	 */
+	protected void tryTlsPlusCertInstall(HttpURLConnection con, URL url, Exception e) throws KeyManagementException,
+			KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
+		if (url.getProtocol().equals("https") && keyFile != null) {
+			log.error("Trying to install cert as last final option", e);
+			int port = url.getPort();
+			if (port == -1)
+				port = url.getDefaultPort();
+
+			// SSLSocketFactory sf = install(url.getHost(), port, keyPass,
 			// keyFile);
 			char[] passphrase = keyPass.toCharArray();
 
 			File file = new File(keyFile);
 			if (file.isFile() == false) {
 				char SEP = File.separatorChar;
-				File dir = new File(System.getProperty("java.home") + SEP
-						+ "lib" + SEP + "security");
+				File dir = new File(System.getProperty("java.home") + SEP + "lib" + SEP + "security");
 				file = new File(dir, keyFile);
 				if (file.isFile() == false) {
 					file = new File(dir, "cacerts");
@@ -418,19 +429,15 @@ public class CheckUrl extends CheckBase {
 			in.close();
 
 			SSLContext context = SSLContext.getInstance("TLS");
-			TrustManagerFactory tmf = TrustManagerFactory
-					.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+			TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
 			tmf.init(ks);
-			X509TrustManager defaultTrustManager = (X509TrustManager) tmf
-					.getTrustManagers()[0];
+			X509TrustManager defaultTrustManager = (X509TrustManager) tmf.getTrustManagers()[0];
 			SavingTrustManager tm = new SavingTrustManager(defaultTrustManager);
 			context.init(null, new TrustManager[] { tm }, null);
 			SSLSocketFactory factory = context.getSocketFactory();
 
-			log.info("Opening connection to " + httpsURL.getHost() + ":" + port
-					+ "...");
-			SSLSocket socket = (SSLSocket) factory.createSocket(
-					httpsURL.getHost(), port);
+			log.info("Opening connection to " + url.getHost() + ":" + port + "...");
+			SSLSocket socket = (SSLSocket) factory.createSocket(url.getHost(), port);
 			socket.setSoTimeout(10000);
 			try {
 				log.info("Starting SSL handshake...");
@@ -454,20 +461,17 @@ public class CheckUrl extends CheckBase {
 					MessageDigest md5 = MessageDigest.getInstance("MD5");
 					for (int i = 0; i < chain.length; i++) {
 						X509Certificate cert = chain[i];
-						log.info(" " + (i + 1) + " Subject "
-								+ cert.getSubjectDN());
+						log.info(" " + (i + 1) + " Subject " + cert.getSubjectDN());
 						log.info("   Issuer  " + cert.getIssuerDN());
 						sha1.update(cert.getEncoded());
-						log.info("   sha1    "
-								+ Utils.toHexString(sha1.digest()));
+						log.info("   sha1    " + Utils.toHexString(sha1.digest()));
 						md5.update(cert.getEncoded());
-						log.info("   md5     "
-								+ Utils.toHexString(md5.digest()));
+						log.info("   md5     " + Utils.toHexString(md5.digest()));
 						log.info("");
 					}
 					int k = 0;
 					X509Certificate cert = chain[k];
-					String alias = httpsURL.getHost() + "-" + (k + 1);
+					String alias = url.getHost() + "-" + (k + 1);
 					ks.setCertificateEntry(alias, cert);
 
 					OutputStream out = new FileOutputStream(keyFile);
@@ -477,31 +481,29 @@ public class CheckUrl extends CheckBase {
 					log.info("");
 					log.info(cert.toString());
 					log.info("");
-					log.info("Added certificate to keystore '" + keyFile
-							+ "' using alias '" + alias + "'");
+					log.info("Added certificate to keystore '" + keyFile + "' using alias '" + alias + "'");
 				}
 			}
 
 			if (factory != null)
 				HttpsURLConnection.setDefaultSSLSocketFactory(factory);
 
-			respCode = con.getResponseCode();
+			setRespCode(con.getResponseCode());
 		} else {
-			log.error("Failed to connect", e);
+			log.error("Failed to connect to:" + url, e);
 		}
 
 	}
 
-	protected HttpURLConnection connect() throws IOException {
+	protected HttpURLConnection connect(URL url) throws IOException {
 		initSSL();
 
-		log.info("Connecting to:" + httpsURL);
+		log.info("Connecting to:" + url);
 		HttpURLConnection.setFollowRedirects(followRedirects);
-		HttpURLConnection con = (HttpURLConnection) httpsURL.openConnection();
+		HttpURLConnection con = (HttpURLConnection) url.openConnection();
 		con.setConnectTimeout(timeout);
 		if (con instanceof HttpsURLConnection) {
-			((HttpsURLConnection) con).setHostnameVerifier(HttpsVerifier
-					.getInstance());
+			((HttpsURLConnection) con).setHostnameVerifier(HttpsVerifier.getInstance());
 			((HttpsURLConnection) con).setSSLSocketFactory(sslSocketFactory);
 		}
 		con.setRequestMethod("GET");
@@ -519,10 +521,8 @@ public class CheckUrl extends CheckBase {
 	/**
 	 * Executes a request using the default context.
 	 * 
-	 * @param request
-	 *            - the request to execute
-	 * @param context
-	 *            TODO
+	 * @param request - the request to execute
+	 * @param context TODO
 	 * @return - the response to this request
 	 * @throws ClientProtocolException
 	 * @throws IOException
@@ -531,9 +531,8 @@ public class CheckUrl extends CheckBase {
 	 * @throws KeyStoreException
 	 * @throws KeyManagementException
 	 */
-	protected HttpResponse execute(HttpUriRequest request, HttpContext context)
-			throws ClientProtocolException, IOException, ParseException,
-			NoSuchAlgorithmException, KeyManagementException, KeyStoreException {
+	protected HttpResponse execute(HttpUriRequest request, HttpContext context) throws ClientProtocolException,
+			IOException, ParseException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException {
 		HttpResponse response = null;
 		if (isHttps(request.getURI().toURL())) {
 			// Trust own CA and all self-signed certs
@@ -547,54 +546,40 @@ public class CheckUrl extends CheckBase {
 				}
 
 				@Override
-				public void verify(String host, SSLSocket ssl)
-						throws IOException {
+				public void verify(String host, SSLSocket ssl) throws IOException {
 					log.info("verify(String host, SSLSocket ssl)");
 				}
 
 				@Override
-				public void verify(String host, X509Certificate cert)
-						throws SSLException {
+				public void verify(String host, X509Certificate cert) throws SSLException {
 					log.info("verify(String host, X509Certificate cert)");
 				}
 
 				@Override
-				public void verify(String host, String[] cns,
-						String[] subjectAlts) throws SSLException {
-					log.info("verify(String host, String[] cns,\r\n"
-							+ "						String[] subjectAlts)");
+				public void verify(String host, String[] cns, String[] subjectAlts) throws SSLException {
+					log.info("verify(String host, String[] cns,\r\n" + "						String[] subjectAlts)");
 				}
 			};
-			final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(
-					sslcontext, allowAllVerifer);
-			httpclient = HttpClients
-					.custom()
-					.setUserAgent(userAgentString)
-					.setHostnameVerifier(allowAllVerifer)
-					.setSSLSocketFactory(sslsf)
-					.setSslcontext(
-							new SSLContextBuilder().loadTrustMaterial(
-									KeyStore.getInstance(KeyStore
-											.getDefaultType()),
-									new TrustStrategy() {
-										public boolean isTrusted(
-												X509Certificate[] arg0,
-												String arg1)
-												throws CertificateException {
-											log.info("isTrusted(X509Certificate[] arg0,String arg1)");
-											return true;
-										}
-									}).build()).build();
-		} else {
-			httpclient = HttpClients.custom().setUserAgent(userAgentString)
+			final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sslcontext, allowAllVerifer);
+			httpclient = HttpClients.custom().setUserAgent(userAgentString).setHostnameVerifier(allowAllVerifer)
+					.setSSLSocketFactory(sslsf).setSslcontext(new SSLContextBuilder()
+							.loadTrustMaterial(KeyStore.getInstance(KeyStore.getDefaultType()), new TrustStrategy() {
+								public boolean isTrusted(X509Certificate[] arg0, String arg1)
+										throws CertificateException {
+									log.info("isTrusted(X509Certificate[] arg0,String arg1)");
+									return true;
+								}
+							}).build())
 					.build();
+		} else {
+			httpclient = HttpClients.custom().setUserAgent(userAgentString).build();
 			// .setDefaultCookieStore(cookieStore)
 		}
 		log.info("Doing " + request.getMethod() + " to " + request.getURI());
 		checkHeaders(request);
 		response = httpclient.execute(request); // , context);
 		checkHeaders(response, request.getURI());
-		respCode = response.getStatusLine().getStatusCode();
+		setRespCode(response.getStatusLine().getStatusCode());
 		return response;
 	}
 
@@ -608,10 +593,8 @@ public class CheckUrl extends CheckBase {
 				final BasicScheme md5Auth = new BasicScheme();
 				// Solve it.
 				md5Auth.processChallenge(challenge);
-				solution = md5Auth.authenticate(
-						new UsernamePasswordCredentials(login, password),
-						new BasicHttpRequest(HttpGet.METHOD_NAME, httpsURL
-								.getPath()), context);
+				solution = md5Auth.authenticate(new UsernamePasswordCredentials(login, password),
+						new BasicHttpRequest(HttpGet.METHOD_NAME, httpsURL.getPath()), context);
 
 			} else if (cVal.contains(AUTH_DIGEST)) {
 				// A org.apache.http.impl.auth.DigestScheme instance is
@@ -622,12 +605,9 @@ public class CheckUrl extends CheckBase {
 
 				// Generate a solution Authentication header using your
 				// username and password.
-				solution = md5Auth.authenticate(
-						new UsernamePasswordCredentials(login, password),
-						new BasicHttpRequest(HttpGet.METHOD_NAME, httpsURL
-								.getPath()), context);
-				log.info("auth header:" + solution.getName() + ":"
-						+ solution.getValue());
+				solution = md5Auth.authenticate(new UsernamePasswordCredentials(login, password),
+						new BasicHttpRequest(HttpGet.METHOD_NAME, httpsURL.getPath()), context);
+				log.info("auth header:" + solution.getName() + ":" + solution.getValue());
 			} else {
 				log.error("Need way to handle auth for:" + challenge.getValue());
 			}
@@ -652,14 +632,12 @@ public class CheckUrl extends CheckBase {
 				HttpPost request = new HttpPost(new URI(loginURL.toString()));
 				List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
 				if (loginParam != null) {
-					BasicNameValuePair vp = new BasicNameValuePair(
-							loginNameParam, login);
+					BasicNameValuePair vp = new BasicNameValuePair(loginNameParam, login);
 					nameValuePairs.add(vp);
 					log.info("adding login parm:" + vp);
 				}
 				if (loginPasswordParam != null) {
-					BasicNameValuePair vp = new BasicNameValuePair(
-							loginPasswordParam, password);
+					BasicNameValuePair vp = new BasicNameValuePair(loginPasswordParam, password);
 					nameValuePairs.add(vp);
 					log.info("adding login parm:" + vp);
 				}
@@ -668,8 +646,7 @@ public class CheckUrl extends CheckBase {
 					while (parms.hasMoreTokens()) {
 						String pair = parms.nextToken();
 						int idx = pair.indexOf('=');
-						BasicNameValuePair vp = new BasicNameValuePair(
-								pair.substring(0, idx), pair.substring(idx + 1));
+						BasicNameValuePair vp = new BasicNameValuePair(pair.substring(0, idx), pair.substring(idx + 1));
 						nameValuePairs.add(vp);
 						log.info("adding login parm:" + vp);
 					}
@@ -677,8 +654,7 @@ public class CheckUrl extends CheckBase {
 				request.setEntity(new UrlEncodedFormEntity(nameValuePairs));
 				response = execute((HttpUriRequest) request, context);
 				log.info("login response code:" + respCode);
-				if (respCode == HttpStatus.SC_OK
-						|| respCode == HttpStatus.SC_MOVED_TEMPORARILY) {
+				if (respCode == HttpStatus.SC_OK || respCode == HttpStatus.SC_MOVED_TEMPORARILY) {
 					HttpEntity entity = response.getEntity();
 					if (entity != null) {
 						if (contentType.contains("text")) {
@@ -687,9 +663,8 @@ public class CheckUrl extends CheckBase {
 						}
 					}
 				}
-			} catch (URISyntaxException | IOException | ParseException
-					| NoSuchAlgorithmException | KeyManagementException
-					| KeyStoreException e) {
+			} catch (URISyntaxException | IOException | ParseException | NoSuchAlgorithmException
+					| KeyManagementException | KeyStoreException e) {
 				setErrStr("Failed posting URL", e);
 			} finally {
 				shutdownClient();
@@ -698,8 +673,7 @@ public class CheckUrl extends CheckBase {
 		return responseStr;
 	}
 
-	protected HttpUriRequest initRequest(String url) throws URISyntaxException,
-			UnsupportedEncodingException {
+	protected HttpUriRequest initRequest(String url) throws URISyntaxException, UnsupportedEncodingException {
 		if (sessionId != null) {
 			if (url.contains("?"))
 				url += "&";
@@ -726,11 +700,9 @@ public class CheckUrl extends CheckBase {
 			else
 				request = new HttpPost(new URI(url.substring(0, i)));
 
-			List<NameValuePair> postParams = URLEncodedUtils.parse(uri,
-					URL_ENCODING);
+			List<NameValuePair> postParams = URLEncodedUtils.parse(uri, URL_ENCODING);
 			if (postParams != null) {
-				((HttpPost) request).setEntity(new UrlEncodedFormEntity(
-						postParams));
+				((HttpPost) request).setEntity(new UrlEncodedFormEntity(postParams));
 				log.info("Post parameters : " + postParams);
 			}
 		} else {
@@ -746,8 +718,7 @@ public class CheckUrl extends CheckBase {
 		}
 		request.setHeader("Host", uri.getHost());
 		request.setHeader("User-Agent", userAgentString);
-		request.setHeader("Accept",
-				"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+		request.setHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
 		request.setHeader("Accept-Language", "en-US,en;q=0.5");
 		request.setHeader("Cookie", getCookies(uri));
 		request.setHeader("Connection", "keep-alive");
@@ -761,8 +732,7 @@ public class CheckUrl extends CheckBase {
 		List<HttpCookie> cookies = cookieStore.get(uri);
 		StringBuilder sb = new StringBuilder();
 		for (HttpCookie cookie : cookies) {
-			sb.append(cookie.getName()).append('=').append(cookie.getValue())
-					.append("; ");
+			sb.append(cookie.getName()).append('=').append(cookie.getValue()).append("; ");
 		}
 		return sb.toString();
 	}
@@ -792,15 +762,13 @@ public class CheckUrl extends CheckBase {
 					// username and password.
 					final Header solution = getAuthHeader(response);
 					if (solution != null) {
-						log.info("auth header:" + solution.getName() + ":"
-								+ solution.getValue());
+						log.info("auth header:" + solution.getName() + ":" + solution.getValue());
 						// Do another request, but this time include the
 						// solution
 						// Authentication header as generated by HttpClient.
 						request.addHeader(solution);
 						try {
-							response = execute((HttpUriRequest) request,
-									context);
+							response = execute((HttpUriRequest) request, context);
 						} catch (Exception e) {
 							setErrStr("Exception connecting to server:", e);
 						}
@@ -823,12 +791,10 @@ public class CheckUrl extends CheckBase {
 							len = entity.getContentLength();
 							responseStr = "Read " + len + " bytes of image";
 							if (saveImage) {
-								String fname = savePath + "/" + getName() + "."
-										+ fileDateTimeFmt.format(new Date())
+								String fname = savePath + "/" + getName() + "." + fileDateTimeFmt.format(new Date())
 										+ ".png";
 								File outputfile = new File(fname);
-								log.warn("Saving image to:"
-										+ outputfile.getAbsolutePath());
+								log.warn("Saving image to:" + outputfile.getAbsolutePath());
 								ImageIO.write(savedImg, "png", outputfile);
 							}
 						} catch (Exception e) {
@@ -837,27 +803,17 @@ public class CheckUrl extends CheckBase {
 							responseStr = "Read " + len + " bytes of image";
 							if (saveImage) {
 
-								String fname = savePath
-										+ "/"
-										+ getName()
-										+ "."
-										+ fileDateTimeFmt.format(new Date())
-										+ "."
-										+ contentType.substring(contentType
-												.indexOf('/') + 1);
+								String fname = savePath + "/" + getName() + "." + fileDateTimeFmt.format(new Date())
+										+ "." + contentType.substring(contentType.indexOf('/') + 1);
 								File outputfile = new File(fname);
-								try (FileOutputStream fos = new FileOutputStream(
-										outputfile)) {
+								try (FileOutputStream fos = new FileOutputStream(outputfile)) {
 									responseStr = EntityUtils.toString(entity);
 									fos.write(responseStr.getBytes());
 								} catch (IOException e1) {
 									e1.printStackTrace();
 									log.error("exists:" + outputfile.exists());
-									log.error("writable:"
-											+ outputfile.canWrite());
-									log.error("dir writable:"
-											+ outputfile.getParentFile()
-													.canWrite());
+									log.error("writable:" + outputfile.canWrite());
+									log.error("dir writable:" + outputfile.getParentFile().canWrite());
 								}
 							}
 						}
@@ -874,8 +830,7 @@ public class CheckUrl extends CheckBase {
 			} else if (respCode == HttpStatus.SC_FORBIDDEN) {
 				StringBuilder sb = new StringBuilder();
 				for (String key : conHeaders.keySet()) {
-					sb.append(key).append(":").append(conHeaders.get(key))
-							.append('\n');
+					sb.append(key).append(":").append(conHeaders.get(key)).append('\n');
 				}
 				responseStr = sb.toString();
 			} else {
@@ -883,7 +838,7 @@ public class CheckUrl extends CheckBase {
 			}
 		} catch (Exception e) {
 			setErrStr("Failed reading URL", e);
-			respCode = HttpStatus.SC_GATEWAY_TIMEOUT;
+			setRespCode(HttpStatus.SC_GATEWAY_TIMEOUT);
 		} finally {
 			shutdownClient();
 		}
@@ -891,12 +846,18 @@ public class CheckUrl extends CheckBase {
 		return responseStr;
 	}
 
+	public JSONObject getJson() throws JSONException {
+		String s = getUrl(httpsURL);
+		JSONObject obj = new JSONObject(s);
+		return obj;
+	}
+
 	protected String getBasicAuth() {
 		String authString = login + ":" + password;
 		log.debug("auth string: " + authString);
 		byte[] authEncBytes = Base64.encodeBase64(authString.getBytes());
 		String authStringEnc = new String(authEncBytes);
-		log.info("Base64 encoded auth string: " + authStringEnc);
+		log.debug("Base64 encoded auth string: " + authStringEnc);
 		Authenticator.setDefault(new Authenticator() {
 			protected PasswordAuthentication getPasswordAuthentication() {
 				return new PasswordAuthentication(login, password.toCharArray());
@@ -906,36 +867,40 @@ public class CheckUrl extends CheckBase {
 		return "Basic " + authStringEnc;
 	}
 
+	/**
+	 * @deprecated use getUrl(URL url)
+	 * @return
+	 */
 	public String getUrl() {
+		return getUrl(httpsURL);
+	}
+
+	public String getUrl(URL url) {
 		String result = null;
 		long startTime = System.currentTimeMillis();
 		try {
-			HttpURLConnection con = connect();
+			HttpURLConnection con = connect(url);
 
 			try {
-				respCode = con.getResponseCode();
+				setRespCode(con.getResponseCode());
 			} catch (Exception e) {
-				tryTlsPlusCertInstall(con, e);
+				tryTlsPlusCertInstall(con, url, e);
 			}
 			checkHeaders(con);
 			// if connects OK do the read just to be sure
 			if (respCode == HttpURLConnection.HTTP_OK || ignoreRespCode) {
 				result = getUrlContentAsString(con);
-			} else if (respCode == HttpURLConnection.HTTP_MOVED_TEMP
-					|| ignoreRespCode) {
+			} else if (respCode == HttpURLConnection.HTTP_MOVED_TEMP || ignoreRespCode) {
 				result = getUrlContentAsString(con);
-			} else if (respCode == HttpURLConnection.HTTP_FORBIDDEN
-					|| ignoreRespCode) {
+			} else if (respCode == HttpURLConnection.HTTP_FORBIDDEN || ignoreRespCode) {
 				StringBuilder sb = new StringBuilder();
 				for (String key : conHeaders.keySet()) {
-					sb.append(key).append(":").append(conHeaders.get(key))
-							.append('\n');
+					sb.append(key).append(":").append(conHeaders.get(key)).append('\n');
 				}
 				result = sb.toString();
 
 			} else {
-				setErrStr("Failed:" + respCode + ": "
-						+ con.getResponseMessage());
+				setErrStr("Failed:" + respCode + ": " + con.getResponseMessage());
 			}
 		} catch (Exception e) {
 			setErrStr(getName(), e);
@@ -958,6 +923,11 @@ public class CheckUrl extends CheckBase {
 
 	public int getRespCode() {
 		return respCode;
+	}
+
+	public void setRespCode(int respCode) {
+		this.respCode = respCode;
+		broadcastStatusCode = (float) respCode;
 	}
 
 	public String getKeyFile() {
@@ -993,20 +963,22 @@ public class CheckUrl extends CheckBase {
 			foundString = s.indexOf(checkString) > -1;
 			if (!foundString) {
 				setErrStr("Failed to find:" + checkString + " in response");
+				broadcastStatusCode = BC_CONTENT_BAD;
 			}
 		}
 		if (failString != null) {
 			foundString = s.indexOf(failString) < 0;
 			if (!foundString) {
 				setErrStr("Found:" + failString + " in response");
+				broadcastStatusCode = BC_FAIL_FOUND;
 			}
 		}
 		if (pattern != null) {
 			Matcher matcher = pattern.matcher(s);
 			foundString = matcher.find();
 			if (!foundString) {
-				setErrStr("Failed to find:" + pattern.toString()
-						+ " in response");
+				setErrStr("Failed to find:" + pattern.toString() + " in response");
+				broadcastStatusCode = BC_CONTENT_BAD;
 			}
 		}
 		if (!foundString) {
@@ -1017,15 +989,13 @@ public class CheckUrl extends CheckBase {
 				if (conHeaders != null) {
 					sb.append("Connection Headers:<br>");
 					for (String key : conHeaders.keySet()) {
-						sb.append(key).append(":").append(conHeaders.get(key))
-								.append("<br>");
+						sb.append(key).append(":").append(conHeaders.get(key)).append("<br>");
 					}
 				}
 				if (respHeaders != null) {
 					sb.append("Response Headers:<br>");
 					for (Header header : respHeaders) {
-						sb.append(header.getName()).append(":")
-								.append(header.getValue()).append("<br>");
+						sb.append(header.getName()).append(":").append(header.getValue()).append("<br>");
 					}
 				}
 				setDetails(sb.toString());
@@ -1048,8 +1018,7 @@ public class CheckUrl extends CheckBase {
 				} else {
 					String s = executeRequest(httpsURL);
 					log.info(s);
-					if (respCode == HttpURLConnection.HTTP_OK
-							|| respCode == HttpURLConnection.HTTP_FORBIDDEN) {
+					if (respCode == HttpURLConnection.HTTP_OK || respCode == HttpURLConnection.HTTP_FORBIDDEN) {
 						if (checkResponse(s)) {
 							setDetails(s);
 							break;
@@ -1058,10 +1027,9 @@ public class CheckUrl extends CheckBase {
 				}
 
 			} else {
-				String s = getUrl();
+				String s = getUrl(httpsURL);
 				log.info(s);
-				if (respCode == HttpURLConnection.HTTP_OK
-						|| respCode == HttpURLConnection.HTTP_FORBIDDEN) {
+				if (respCode == HttpURLConnection.HTTP_OK || respCode == HttpURLConnection.HTTP_FORBIDDEN) {
 					if (checkResponse(s)) {
 						setDetails(s);
 						break;
@@ -1070,13 +1038,13 @@ public class CheckUrl extends CheckBase {
 
 			}
 		}
+		broadcastStatus();
 		// if the check failed and we have a reset URL run it before second
 		// check. But run it only once per cycle
 		if (reset != null && !foundString) {
 			try {
 				reset.doReset(getName());
-			} catch (ClassNotFoundException | InstantiationException
-					| IllegalAccessException e) {
+			} catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
 				setDetails("Reset failed:" + e.getMessage());
 			}
 		}
@@ -1129,8 +1097,7 @@ public class CheckUrl extends CheckBase {
 		if (regexString != null) {
 			pattern = Pattern.compile(regexString);
 		}
-		followRedirects = getBundleVal(Boolean.class, "followRedirects",
-				followRedirects);
+		followRedirects = getBundleVal(Boolean.class, "followRedirects", followRedirects);
 		authType = getBundleVal(String.class, "authType", authType);
 		saveImage = getBundleVal(Boolean.class, "saveImage", false);
 		savePath = getBundleVal(String.class, "savePath", savePath);
@@ -1256,13 +1223,11 @@ public class CheckUrl extends CheckBase {
 			throw new UnsupportedOperationException();
 		}
 
-		public void checkClientTrusted(X509Certificate[] chain, String authType)
-				throws CertificateException {
+		public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
 			throw new UnsupportedOperationException();
 		}
 
-		public void checkServerTrusted(X509Certificate[] chain, String authType)
-				throws CertificateException {
+		public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
 			this.chain = chain;
 			tm.checkServerTrusted(chain, authType);
 		}

@@ -1,0 +1,10 @@
+## uses class dea.monitor.checker.CheckCam
+region = Iris4
+description = Amcrest PTL - Living room looking west
+httpsURL=http://192.168.1.22/cgi-bin/snapshot.cgi?loginuse=admin&loginpas=admin
+timeout=60000
+# in bytes
+minSize=10240
+login=admin
+password=admin
+checkString=liveBtnBt9

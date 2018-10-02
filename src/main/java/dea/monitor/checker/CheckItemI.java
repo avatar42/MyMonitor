@@ -17,8 +17,7 @@ public interface CheckItemI extends Runnable {
 
 	void setNextRun(GregorianCalendar nextRun);
 
-	void loadBundle(String bundleName) throws ClassNotFoundException,
-			InstantiationException, IllegalAccessException;
+	void loadBundle(String bundleName) throws ClassNotFoundException, InstantiationException, IllegalAccessException;
 
 	boolean isRunning();
 
@@ -45,4 +44,15 @@ public interface CheckItemI extends Runnable {
 	boolean isMutliCheck();
 
 	// TODO: add notify / beep option
+
+	// common broadcast codes
+	float BC_OFFLINE = 0f;
+	float BC_EXCEPTION = 100f;
+	// 200-507 See HttpStatus
+	float BC_OK = 200f;
+	float BC_LOGIN_FAILED = 901f;
+	float BC_CONTENT_MISSING = 902f;
+	float BC_CONTENT_BAD = 903f;
+	float BC_CONTENT_OLD = 904f;
+	float BC_FAIL_FOUND = 905f;
 }

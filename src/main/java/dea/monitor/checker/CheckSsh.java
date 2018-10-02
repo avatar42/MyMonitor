@@ -32,6 +32,11 @@ public class CheckSsh extends CheckBase {
 	protected int respCode = 0;
 	protected boolean foundString = false;
 
+	public void setRespCode(int respCode) {
+		this.respCode = respCode;
+		broadcastStatusCode = (float) respCode;
+	}
+
 	@Override
 	public void run() {
 		running = true;
@@ -55,7 +60,7 @@ public class CheckSsh extends CheckBase {
 					session.setConfig("StrictHostKeyChecking", "no");
 
 					// session.connect(); - ten second timeout
-					session.connect(10 * 1000);
+					session.connect(30 * 1000);
 
 					channel = session.openChannel("exec");
 					((ChannelExec) channel).setCommand(command);
@@ -91,9 +96,8 @@ public class CheckSsh extends CheckBase {
 						if (channel.isClosed()) {
 							if (in.available() > 0)
 								continue;
-							System.out.println("exit-status: "
-									+ channel.getExitStatus());
-							respCode = channel.getExitStatus();
+							System.out.println("exit-status: " + channel.getExitStatus());
+							setRespCode(channel.getExitStatus());
 							break;
 						}
 						try {
@@ -122,8 +126,10 @@ public class CheckSsh extends CheckBase {
 					if (checkString != null) {
 						foundString = s.indexOf(checkString) > -1;
 						if (!foundString) {
-							setErrStr("Failed to find:" + checkString
-									+ " in response");
+							setErrStr("Failed to find:" + checkString + " in response");
+							broadcastStatusCode = BC_CONTENT_BAD;
+						} else {
+							broadcastStatusCode = BC_OK;
 						}
 					}
 					break;

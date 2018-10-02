@@ -35,6 +35,7 @@ public class CheckCam extends CheckUrl {
 							+ minSize);
 				} else {
 					setState("respCode:" + respCode + " file empty");
+					broadcastStatusCode = BC_CONTENT_MISSING;
 				}
 				if (getConHeaders() != null) {
 					sb.append("Connection Headers:<br>");

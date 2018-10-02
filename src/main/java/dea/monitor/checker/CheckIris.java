@@ -33,6 +33,7 @@ public class CheckIris extends CheckUrl {
 					sb.append(getErrStr());
 				}
 				setState("respCode:" + respCode + " file empty");
+				broadcastStatusCode = BC_CONTENT_MISSING;
 				if (getConHeaders() != null) {
 					sb.append("Connection Headers:<br>");
 					for (String key : getConHeaders().keySet()) {

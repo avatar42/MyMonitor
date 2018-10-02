@@ -82,8 +82,8 @@ public class CheckOwl extends CheckUrl {
 					} catch (ParseException e) {
 						throw new IOException(e);
 					}
-					respCode = response.getStatusLine().getStatusCode();
-
+					setRespCode(response.getStatusLine().getStatusCode());
+					
 					if (respCode == -1) {
 						HttpEntity entity = response.getEntity();
 						String responseStr = null;
@@ -114,7 +114,7 @@ public class CheckOwl extends CheckUrl {
 			responseStr = httpclient.execute(request, responseHandler);
 		} catch (Exception e) {
 			setErrStr("Failed reading URL", e);
-			respCode = HttpStatus.SC_GATEWAY_TIMEOUT;
+			setRespCode(HttpStatus.SC_GATEWAY_TIMEOUT);
 			try {
 				URLConnection conHand = httpsURL.openConnection();
 				String type = conHand.getContentType();

@@ -1,8 +1,0 @@
-## EZcam example
-region = Shop
-description = EZcam - Shop floor
-httpsURL=http://192.168.1.27/Login.htm?command=login&username=admin&password=admin&langlist=1
-timeout=60000
-# in bytes
-minSize=10240
-checkString=<title>NetSurveillance</title>
