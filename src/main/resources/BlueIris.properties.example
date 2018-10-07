@@ -1,8 +1,26 @@
 ## Check Blue Iris 4 web server is up
-region = Cams
+#region = Cams
+#description = Blue Iris 4
+
+## pre 4.3.6.1 this worked
+#httpsURL = http://192.168.1.47/jpegpull.htm
+#login=admin
+#password=password
+### name of cam that should be in list
+#checkString=Bird&nbsp;Feeder&nbsp;HD
+## using the checkURL class
+## after you need a method to generate a token for the login to use
+##var a = document.getElementById('user').value+":"+getSession()+":"+ document.getElementById('pw').value;
+##window.location = "/?page=" + getUrlVars()["page"] + "&login=" + hex_md5( a );
+## so until I can write a class just check the login page comes up
+#httpsURL = http://192.168.1.47/login.htm?page=%2F
+#checkString=submitenter(this,event)
+
+## Using the CheckBlueIris class
+region = Iris4
 description = Blue Iris 4
-httpsURL = http://192.168.1.48/jpegpull.htm
 login=admin
 password=password
-## name of cam that should be in list
-checkString=Bird&nbsp;Feeder&nbsp;HD
+urlMethod=POST
+httpsURL=http://192.168.1.47/json
+broadcast.class=dea.monitor.broadcast.Homeseer

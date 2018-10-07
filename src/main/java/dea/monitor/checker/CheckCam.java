@@ -10,6 +10,7 @@ public class CheckCam extends CheckUrl {
 	public void loadBundle() {
 		super.loadBundle();
 		minSize = getBundleVal(Long.class, "minSize", minSize);
+		broadcastType = "cam";
 	}
 
 	public void run() {
@@ -18,8 +19,7 @@ public class CheckCam extends CheckUrl {
 		for (int i = 0; i < retries; i++) {
 			String s = executeRequest(httpsURL);
 
-			if (respCode == HttpURLConnection.HTTP_OK && s != null
-					&& len > minSize) {
+			if (respCode == HttpURLConnection.HTTP_OK && s != null && len > minSize) {
 				setDetails(s);
 				setState(null);
 				break;
@@ -29,10 +29,8 @@ public class CheckCam extends CheckUrl {
 					sb.append(getErrStr());
 				}
 				if (getSavedImg() != null) {
-					setState("respCode:" + respCode + " size:"
-							+ getSavedImg().getHeight() + " x "
-							+ getSavedImg().getWidth() + " " + len + " < "
-							+ minSize);
+					setState("respCode:" + respCode + " size:" + getSavedImg().getHeight() + " x "
+							+ getSavedImg().getWidth() + " " + len + " < " + minSize);
 				} else {
 					setState("respCode:" + respCode + " file empty");
 					broadcastStatusCode = BC_CONTENT_MISSING;
@@ -40,16 +38,13 @@ public class CheckCam extends CheckUrl {
 				if (getConHeaders() != null) {
 					sb.append("Connection Headers:<br>");
 					for (String key : getConHeaders().keySet()) {
-						sb.append(key).append(":")
-								.append(getConHeaders().get(key))
-								.append("<br>");
+						sb.append(key).append(":").append(getConHeaders().get(key)).append("<br>");
 					}
 				}
 				if (getRespHeaders() != null) {
 					sb.append("Response Headers:<br>");
 					for (Header header : getRespHeaders()) {
-						sb.append(header.getName()).append(":")
-								.append(header.getValue()).append("<br>");
+						sb.append(header.getName()).append(":").append(header.getValue()).append("<br>");
 					}
 				}
 				setDetails(sb.toString());

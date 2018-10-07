@@ -1,8 +1,12 @@
-## check to see if your Homeseer is responding
-region = Home
-## URL of Plug-ins->Z-wave->Node information
-httpsURL = http://192.168.1.46:81/ZWaveWho
+## broadcast status changes to Homeseer for notifications and quick fixes.
+httpsURL = http://10.10.1.45/JSON?
+hs.user=USERNAME
+hs.pass=PASSWORD
+##Room
+hs.location1=
+##Building
+hs.location2=MyMonitor
 #seconds
 wait=300
-## name of a Z-Wave sensor
-checkString=Roamio_Power
+hs.event.group=Monitor
+hs.event.create=NewDevice

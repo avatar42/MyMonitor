@@ -34,6 +34,7 @@ public class CheckWu extends CheckUrl {
 	public void loadBundle() {
 		super.loadBundle();
 		maxOld = getBundleVal(Integer.class, "maxOld", maxOld);
+		broadcastType = "web";
 	}
 
 	public void run() {

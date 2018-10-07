@@ -18,11 +18,46 @@ public interface DBInterface {
 	 */
 	int clearItem(String name);
 
+	/**
+	 * Add item property to DB
+	 * 
+	 * @param name
+	 * @param key
+	 * @param val
+	 * @return
+	 */
 	int insertItemProperty(String name, String key, String val);
 
+	/**
+	 * Update item property in DB
+	 * 
+	 * @param name
+	 * @param key
+	 * @param val
+	 * @return
+	 */
 	int updateItemProperty(String name, String key, String val);
 
+	/**
+	 * Get all the properties for an item
+	 * 
+	 * @param name
+	 * @return
+	 */
 	Map<String, String> getItemProperties(String name);
 
+	/**
+	 * Get all the check names and classes indexed by name
+	 * 
+	 * @return
+	 */
 	Map<String, String> getChecks();
+
+	/**
+	 * Mark a check active / inactive
+	 * 
+	 * @param name
+	 * @param isActive
+	 */
+	int setEnabledItem(String name, boolean isActive);
 }

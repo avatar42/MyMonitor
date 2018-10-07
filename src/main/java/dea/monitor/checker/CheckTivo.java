@@ -65,6 +65,7 @@ public class CheckTivo extends CheckUrl {
 		maxShort = getBundleVal(Long.class, "maxShort", maxShort);
 		saveNPL = getBundleVal(Boolean.class, "saveNPL", saveNPL);
 		outPath = getBundleVal(String.class, "exportPath", getName() + ".npl.csv");
+		broadcastType = "tivo";
 	}
 
 	public NodeList getNodeList(XPath xpath, Document doc, String expr) {
@@ -300,6 +301,7 @@ public class CheckTivo extends CheckUrl {
 							errMsg.append(shortCnt).append(" shows are short\n");
 							broadcastStatusCode = (float) shortCnt;
 						}
+						setStatusMsg("" + shortCnt + " shows are short");
 						if (errMsg.length() > 0) {
 							setErrStr(errMsg.toString());
 							setDetails(detailsSb.toString());

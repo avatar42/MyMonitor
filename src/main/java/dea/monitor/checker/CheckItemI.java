@@ -154,6 +154,18 @@ public interface CheckItemI extends Runnable {
 
 	// common broadcast codes
 	float BC_OFFLINE = 0f;
+	float BC_CONNECTED = 1f;
+	float BC_NOT_CONNECTED = 2f;
+	float BC_TRIGGERED = 3f;
+	float BC_RECORDING = 4f;
+	float BC_MOTION = 5f;
+	float BC_PAUSED = 6f;
+	float BC_HIDDEN = 7f;
+	float BC_TEMPFULL = 8f;
+	float BC_NO_SIGNAL = 9f;
+	float BC_DISABLED = 10f;
+	float BC_YELLOW = 10f;
+	
 	float BC_EXCEPTION = 100f;
 	// 200-507 See HttpStatus
 	float BC_OK = 200f;

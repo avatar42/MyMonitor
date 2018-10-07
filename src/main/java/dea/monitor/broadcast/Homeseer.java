@@ -73,16 +73,20 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		}
 	}
 
-	public void sendDetails(Integer refID, String details) throws IOException, UnsupportedOperationException {
-		try {
-			String tmp = details;
-			if (tmp != null && tmp.length() > 140) {
-				tmp = details.substring(0, 140);
-			}
-			setdeviceproperty(refID, "UserNote", tmp);
-		} catch (MalformedURLException | JSONException e) {
-			throw new IOException(e);
-		}
+	/**
+	 * UserNote is used in my Homeseer system for cat storage when a device is
+	 * marked offline
+	 */
+	public void sendDetails(Integer refID, String details) throws IOException {
+//		try {
+//			String tmp = details;
+//			if (tmp != null && tmp.length() > 140) {
+//				tmp = details.substring(0, 140);
+//			}
+//			setdeviceproperty(refID, "UserNote", tmp);
+//		} catch (MalformedURLException | JSONException e) {
+//			throw new IOException(e);
+//		}
 	}
 
 	public void sendNameChg(Integer refID, String name) throws IOException, UnsupportedOperationException {
@@ -130,7 +134,8 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		return id;
 	}
 
-	public Integer updateDevice(Integer refID, String deviceName, String region) throws JSONException, IOException {
+	public Integer updateDevice(Integer refID, String deviceName, String region, String type)
+			throws JSONException, IOException {
 		if (deviceName == null) {
 			throw new IOException("deviceName is required");
 		}
@@ -162,7 +167,7 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		// could not find by name or refID so add one.
 		if (obj == null) {
 			// create a new object
-			runevent(eventGroup, createEvent);
+			runevent(eventGroup, createEvent+type);
 			// get new device
 			Map<String, JSONObject> map = getstatus(null, null, location2);
 			if (map != null) {
@@ -487,7 +492,7 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 			System.out.println("\n getDevices:" + item.getDevices());
 			System.out.println("\n getDevicesByRegion:" + item.getDevicesByRegion("MyMonitor"));
 			System.out.println("\n getRegions:" + item.getRegions());
-			System.out.println("\n update Obj:" + item.updateDevice(0, "dea42", "Hosting"));
+			System.out.println("\n update Obj:" + item.updateDevice(0, "dea42", "Hosting", "web"));
 //			Homeseer hs = new Homeseer();
 //			hs.getevents();
 		} catch (Exception e) {

@@ -56,14 +56,14 @@ public interface BroadcastInterface {
 	void sendError(Integer refID, String errMsg) throws IOException, UnsupportedOperationException;
 
 	/**
-	 * Set details string on a remote object / device.
+	 * Set details string on a remote object / device. Maybe ignored be broadcast
+	 * class.
 	 * 
 	 * @param refID   ID used to reference the device in this system.
 	 * @param details value to set it to
-	 * @throws IOException                   an error was encountered sending
-	 * @throws UnsupportedOperationException if this class does not support this
+	 * @throws IOException an error was encountered sending
 	 */
-	void sendDetails(Integer refID, String details) throws IOException, UnsupportedOperationException;
+	void sendDetails(Integer refID, String details) throws IOException;
 
 	/**
 	 * Set name on a remote object / device.
@@ -146,7 +146,9 @@ public interface BroadcastInterface {
 	 *                   not found.
 	 * @param deviceName in remote system
 	 * @param region     to use in remote system
+	 * @param type       of device in remote system
 	 * @return id of device in remote system. Same as refID if not new object.
 	 */
-	Integer updateDevice(Integer refID, String deviceName, String region) throws JSONException, IOException;
+	Integer updateDevice(Integer refID, String deviceName, String region, String type)
+			throws JSONException, IOException;
 }

@@ -2,6 +2,7 @@ package dea.monitor.checker;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import dea.monitor.broadcast.BroadcastInterface;
 import dea.monitor.db.DBInterface;
+import dea.monitor.db.SQLiteDB;
 import dea.monitor.reset.ResetI;
 import twitter4j.JSONException;
 
@@ -29,6 +31,7 @@ public abstract class CheckBase implements CheckItemI {
 	private Date lastOK;
 	private boolean lastRunOK = false;
 	private String errStr = null;
+	private String statusMsg = null;
 	private String details = null;
 	protected ResourceBundle bundle;
 	protected Map<String, String> props;
@@ -36,12 +39,21 @@ public abstract class CheckBase implements CheckItemI {
 	protected Thread thread;
 	protected String contentType = "text/text;";
 	protected BufferedImage savedImg;
+	// has child items that are checked
 	protected boolean mutliCheck = false;
+	// Class to use to broadcast status
 	protected BroadcastInterface broadcast;
+	// ID in the remote system
 	protected int broadcastID = 0;
+	// last broadcast status code
 	protected Float broadcastStatusCode = BC_OFFLINE;
+	// last broadcast status string
 	protected String broadcastStatusString = null;
+	// type of device on the receiving system
+	protected String broadcastType = "web";
+	// DB interface class
 	protected DBInterface dbi;
+	// Reset interface class
 	protected ResetI reset;
 
 	protected abstract void loadBundle();
@@ -72,7 +84,7 @@ public abstract class CheckBase implements CheckItemI {
 			broadcastID = getBundleVal(Integer.class, "broadcast.id", 0);
 			if (broadcastID == 0) {
 				try {
-					broadcastID = broadcast.updateDevice(broadcastID, name, region);
+					broadcastID = broadcast.updateDevice(broadcastID, name, region, broadcastType);
 					if (dbi != null) {
 						dbi.updateItemProperty(name, "broadcast.id", "" + broadcastID);
 					}
@@ -176,12 +188,16 @@ public abstract class CheckBase implements CheckItemI {
 	}
 
 	protected void broadcastStatus() {
-		if (broadcast != null && broadcastID > 0) {
+		broadcastStatus(broadcastID, broadcastStatusCode, errStr, details, statusMsg);
+	}
+
+	protected void broadcastStatus(int bid, float statusCode, String errMsg, String statusDetails, String statusMsg) {
+		if (broadcast != null && bid > 0) {
 			try {
-				broadcast.sendVal(broadcastID, broadcastStatusCode);
-				broadcast.sendError(broadcastID, errStr);
-				broadcast.sendStatusString(broadcastID, errStr);
-				broadcast.sendDetails(broadcastID, details);
+				broadcast.sendVal(bid, statusCode);
+				broadcast.sendError(bid, errMsg);
+				broadcast.sendStatusString(bid, statusMsg);
+				broadcast.sendDetails(bid, statusDetails);
 			} catch (UnsupportedOperationException | IOException e) {
 				log.error("Failed sending status", e);
 				setState("Failed sending status");
@@ -266,6 +282,14 @@ public abstract class CheckBase implements CheckItemI {
 	public void setErrStr(String errStr, Exception e) {
 		this.errStr = errStr + ":" + e.getMessage();
 		log.error(errStr, e);
+	}
+
+	public String getStatusMsg() {
+		return statusMsg;
+	}
+
+	public void setStatusMsg(String statusMsg) {
+		this.statusMsg = statusMsg;
 	}
 
 	public String getDescription() {
@@ -372,6 +396,16 @@ public abstract class CheckBase implements CheckItemI {
 	 */
 	public void cmd(String[] args) {
 		if (args.length > 0) {
+			ResourceBundle bundle = ResourceBundle.getBundle("checks");
+			String dbPath = bundle.getString("db.path");
+			if (dbPath != null) {
+				try {
+					dbi = new SQLiteDB(dbPath);
+				} catch (SQLException e1) {
+					log.error("Failed connectiong to DB", e1);
+				}
+
+			}
 			try {
 				loadBundle(args[0]);
 				Thread thread = background();

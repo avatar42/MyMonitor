@@ -835,6 +835,8 @@ public class CheckUrl extends CheckBase {
 				responseStr = sb.toString();
 			} else {
 				setErrStr("URL returned:" + respCode);
+				setStatusMsg("respCode:" + respCode);
+
 			}
 		} catch (Exception e) {
 			setErrStr("Failed reading URL", e);
@@ -901,6 +903,7 @@ public class CheckUrl extends CheckBase {
 
 			} else {
 				setErrStr("Failed:" + respCode + ": " + con.getResponseMessage());
+				setStatusMsg("respCode:" + respCode);
 			}
 		} catch (Exception e) {
 			setErrStr(getName(), e);
@@ -1105,6 +1108,7 @@ public class CheckUrl extends CheckBase {
 		if (login == null) {
 			log.info("Auth info not provided");
 		}
+		broadcastType = "web";
 	}
 
 	public Map<String, List<String>> getConHeaders() {
