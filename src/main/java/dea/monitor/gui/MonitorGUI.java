@@ -131,7 +131,7 @@ public class MonitorGUI {
 			DBInterface dbi;
 			try {
 				dbi = new SQLiteDB(dbPath);
-				Map<String, String> map = dbi.getChecks();
+				Map<String, String> map = dbi.getChecks(false);
 				for (String name : map.keySet()) {
 					String className = map.get(name);
 					try {

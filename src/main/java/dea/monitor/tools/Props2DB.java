@@ -12,7 +12,8 @@ import dea.monitor.db.DBInterface;
 import dea.monitor.db.SQLiteDB;
 
 /**
- * Tool for generating a database from the old style property files.
+ * Tool for generating a database from the old style property files and working
+ * with properties in the DB from the command line.
  * 
  * @author dea
  *
@@ -21,68 +22,95 @@ public class Props2DB {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	private ResourceBundle bundle;
+	private DBInterface dbi;
 
-	public Props2DB() {
+	public Props2DB() throws SQLException {
+		bundle = ResourceBundle.getBundle("checks");
+		String dbPath = bundle.getString("db.path");
+		dbi = new SQLiteDB(dbPath);
 	}
 
+	/**
+	 * Replace all properties for each check listed in the checks.properties file.
+	 */
 	public void convert() {
-
-		bundle = ResourceBundle.getBundle("checks");
-
-		String dbPath = bundle.getString("db.path");
-
-		DBInterface dbi;
-		try {
-			dbi = new SQLiteDB(dbPath);
-
-			try (Connection conn = dbi.getConnection(dbPath); Statement stmt = dbi.getStatement()) {
-				for (String key : bundle.keySet()) {
-					if (key.startsWith("check.")) {
-						String className = bundle.getString(key);
-						String itemName = key.substring(6);
-						dbi.clearItem(itemName);
-						ResourceBundle itemBundle = ResourceBundle.getBundle(itemName);
-						log.info(itemName + ":class:" + className);
-						dbi.insertItemProperty(itemName, "class", className);
-						for (String itemkey : itemBundle.keySet()) {
-							dbi.insertItemProperty(itemName, itemkey, itemBundle.getString(itemkey));
-						}
-					}
+		for (String key : bundle.keySet()) {
+			if (key.startsWith("check.")) {
+				String className = bundle.getString(key);
+				String itemName = key.substring(6);
+				dbi.clearItem(itemName);
+				ResourceBundle itemBundle = ResourceBundle.getBundle(itemName);
+				log.info(itemName + ":class:" + className);
+				dbi.insertItemProperty(itemName, "class", className, true);
+				for (String itemkey : itemBundle.keySet()) {
+					dbi.insertItemProperty(itemName, itemkey, itemBundle.getString(itemkey), true);
 				}
-
-			} catch (SQLException e) {
-				log.error("Failed to update DB", e);
 			}
-		} catch (SQLException e1) {
-			log.error("Failed to connect to DB", e1);
 		}
 
 	}
 
-	public void addProp(String itemName, String className) {
+	/**
+	 * Replace all properties for itemName with the ones in the
+	 * [itemName].properties file. And with the className passed.
+	 * 
+	 * @param itemName
+	 * @param className to use for the "class" property
+	 */
+	public void addProps(String itemName, String className) {
+		dbi.clearItem(itemName);
+		ResourceBundle itemBundle = ResourceBundle.getBundle(itemName);
+		log.info(itemName + ":class:" + className);
+		dbi.insertItemProperty(itemName, "class", className, true);
+		for (String itemkey : itemBundle.keySet()) {
+			dbi.insertItemProperty(itemName, itemkey, itemBundle.getString(itemkey), true);
+		}
+	}
 
-		bundle = ResourceBundle.getBundle("checks");
+	/**
+	 * Update property keyName for itemName with value and enabled set. Will add if
+	 * unable to update.
+	 * 
+	 * @param itemName
+	 * @param keyName
+	 * @param value
+	 * @param enabled
+	 */
+	public void updateProp(String itemName, String keyName, String value, boolean enabled) {
+		if (dbi.updateItemProperty(itemName, keyName, value, enabled) == 0)
+			dbi.insertItemProperty(itemName, keyName, value, true);
+	}
 
-		String dbPath = bundle.getString("db.path");
+	public static void usage() {
+		System.err.println("USAGE: Props2DB all | -b name | -d name | -e name | name class | name key value");
+		System.err.println("all = replace all the props in the DB");
+		System.err.println("+b name = add broadcast.class to name's properties");
+		System.err.println("-b name = disable broadcast.class to name's properties");
+		System.err.println("-d name = disable all name's properties");
+		System.err.println("-e name = enable all name's properties");
+		System.err.println("name full.path.to.class = add a DB entry for name to use checker class");
+		System.err.println("name key value = add a DB entry for name to use checker class");
+	}
 
-		DBInterface dbi;
-		try {
-			dbi = new SQLiteDB(dbPath);
-
-			try (Connection conn = dbi.getConnection(dbPath); Statement stmt = dbi.getStatement()) {
-				dbi.clearItem(itemName);
-				ResourceBundle itemBundle = ResourceBundle.getBundle(itemName);
-				log.info(itemName + ":class:" + className);
-				dbi.insertItemProperty(itemName, "class", className);
-				for (String itemkey : itemBundle.keySet()) {
-					dbi.insertItemProperty(itemName, itemkey, itemBundle.getString(itemkey));
-				}
-
-			} catch (SQLException e) {
-				log.error("Failed to update DB", e);
+	public void parse(String[] args) {
+		if (args == null || args.length == 0) {
+			usage();
+		} else if (args[0].equalsIgnoreCase("all")) {
+			convert();
+		} else if (args.length == 2) {
+			if ("+b".equals(args[0])) {
+				updateProp(args[1], "broadcast.class", "dea.monitor.broadcast.Homeseer", true);
+			} else if ("-b".equals(args[0])) {
+				updateProp(args[1], "broadcast.class", "dea.monitor.broadcast.Homeseer", false);
+			} else if ("-d".equals(args[0])) {
+				dbi.setEnabledItem(args[1], false);
+			} else if ("-e".equals(args[0])) {
+				dbi.setEnabledItem(args[1], true);
+			} else {
+				addProps(args[0], args[1]);
 			}
-		} catch (SQLException e1) {
-			log.error("Failed to connect to DB", e1);
+		} else {
+			usage();
 		}
 
 	}
@@ -94,17 +122,10 @@ public class Props2DB {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		Props2DB item = new Props2DB();
+		Props2DB item;
 		try {
-			if (args == null || args.length == 0) {
-				System.err.println("USAGE: Props2DB all | name class");
-			} else if (args[0].equalsIgnoreCase("all")) {
-				item.convert();
-			} else if (args.length == 2) {
-				item.addProp(args[0], args[1]);
-			} else {
-				System.err.println("USAGE: Props2DB all | name class");
-			}
+			item = new Props2DB();
+			item.parse(args);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

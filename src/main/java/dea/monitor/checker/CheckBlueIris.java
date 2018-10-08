@@ -32,13 +32,17 @@ import net.sf.json.JSONObject;
  * Look at camera status on Blue Iris servers. Note uses net.sf.json.JSONObject
  * to avoid issues with duplicate keys in Blue Iris JSON responses.
  * 
- * Note too this checker assumes DB and broadcast options are used
+ * Note too this checker assumes DB and broadcast options are used.
+ * 
+ * For more on the JSON API see
+ * https://www.houselogix.com/docs/blue-iris/BlueIris/json.htm
  * 
  * @author dea
  * 
  */
 public class CheckBlueIris extends CheckUrl {
 	private String session;
+	private String response;
 
 	public void loadBundle() {
 		super.loadBundle();
@@ -123,6 +127,12 @@ public class CheckBlueIris extends CheckUrl {
 		return s;
 	}
 
+	/**
+	 * Gen the response to the login challenge
+	 * 
+	 * @return
+	 * @throws NoSuchAlgorithmException
+	 */
 	public String genResponse() throws NoSuchAlgorithmException {
 		// var myResponse = md5($("#txtUn").val() + ":" + response.session + ":" +
 		// $("#txtPw").val());
@@ -137,138 +147,184 @@ public class CheckBlueIris extends CheckUrl {
 		return sb.toString();
 	}
 
+	public boolean jsonLogin() throws NoSuchAlgorithmException {
+		JSONObject params = new JSONObject();
+
+		params.put("cmd", "login");
+		// get session
+		String s = postBi(params);
+
+		// sent response to login challenge
+		JSONObject resp = JSONObject.fromObject(s);
+		session = resp.getString("session");
+		response = genResponse();
+		params.put("session", session);
+		params.put("response", response);
+		s = postBi(params);
+		resp = JSONObject.fromObject(s);
+
+		return "success".equals(resp.getString("result"));
+	}
+
+	/**
+	 * Gets config of camera. A few things not returned by camlist, like the
+	 * setmotion config, but a lot less total info
+	 * 
+	 * @param shortName of camera
+	 * @return
+	 */
+	public JSONObject getCamconfig(String shortName) {
+		JSONObject params = new JSONObject();
+
+		params.put("session", session);
+		params.put("response", response);
+		params.put("cmd", "camconfig");
+		params.put("camera", shortName);
+		String s = postBi(params);
+		JSONObject resp = JSONObject.fromObject(s);
+
+		log.debug("camconfig response:" + resp);
+
+		return resp;
+	}
+
+	/**
+	 * Get the basic config info of all the cams on the server
+	 * 
+	 * @return
+	 */
+	public JSONArray getCamlist() {
+		JSONObject params = new JSONObject();
+
+		params.put("session", session);
+		params.put("response", response);
+		params.put("cmd", "camlist");
+		String s = postBi(params);
+		JSONObject resp = JSONObject.fromObject(s);
+
+		log.debug("camlist response:" + resp);
+		JSONArray data = resp.getJSONArray("data");
+		log.debug("data:" + data.toString());
+
+		return data;
+	}
+
 	public void run() {
 		running = true;
 		log.info("reading url:" + httpsURL);
 		for (int i = 0; i < retries; i++) {
-			JSONObject params = new JSONObject();
 			try {
-				params.put("cmd", "login");
-			} catch (JSONException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			// get session
-			String s = postBi(params);
 
-			try {
-				// sent response to login challenge
-				JSONObject resp = JSONObject.fromObject(s);
-				session = resp.getString("session");
-				params.put("session", session);
-				params.put("response", genResponse());
-				s = postBi(params);
+				if (jsonLogin()) {
+					JSONArray data = getCamlist();
 
-				// get camera info
-				params.remove("cmd");
-				params.put("cmd", "camlist");
-				s = postBi(params);
-				// dumpResponse("temp.json", s);
+					broadcastStatusCode = (float) respCode;
+					if (respCode == HttpURLConnection.HTTP_OK) {
+						setDetails(data.toString());
+						setState(null);
+						Iterator<?> it = data.iterator();
+						while (it.hasNext()) {
+							JSONObject jo = (JSONObject) it.next();
+							// long name
+							String optionDisplay = jo.getString("optionDisplay");
+							log.info("optionDisplay:" + optionDisplay);
+							// groups start with +
+							if (optionDisplay != null && optionDisplay.charAt(0) != '+') {
+								// short name
+								String optionValue = jo.getString("optionValue");
+								String subBundleName = getName() + "." + optionValue;
 
-				resp = JSONObject.fromObject(s);
-				log.info("resp:" + resp);
-				JSONArray data = resp.getJSONArray("data");
-				log.info("data:" + data.toString());
-				broadcastStatusCode = (float) respCode;
-				if (respCode == HttpURLConnection.HTTP_OK) {
-					setDetails(s);
-					setState(null);
-					Iterator<?> it = data.iterator();
-					while (it.hasNext()) {
-						JSONObject jo = (JSONObject) it.next();
-						// long name
-						String optionDisplay = jo.getString("optionDisplay");
-						log.info("optionDisplay:" + optionDisplay);
-						// groups start with +
-						if (optionDisplay != null && optionDisplay.charAt(0) != '+') {
-							// short name
-							String optionValue = jo.getString("optionValue");
-							String subBundleName = getName() + "." + optionValue;
-							if (dbi != null) {
-								if (broadcast != null) {
-									Map<String, String> camProps = dbi.getItemProperties(subBundleName);
-									if (!camProps.containsKey("broadcast.id")) {
-										String devType = "cam";
-										if (jo.getBoolean("ptz")) {
-											devType = "ptz";
-										}
-										if (jo.getBoolean("audio")) {
-											devType = devType + "A";
-										}
-										try {
-											// find or create a remote device to link to
-											int camBID = broadcast.updateDevice(0, subBundleName, getName(), devType);
-											if (dbi != null) {
-												dbi.updateItemProperty(subBundleName, "broadcast.id", "" + camBID);
+								if (dbi != null) {
+									if (broadcast != null) {
+										Map<String, String> camProps = dbi.getItemProperties(subBundleName);
+										if (!camProps.containsKey("broadcast.id")) {
+											String devType = "cam";
+											if (jo.getBoolean("ptz")) {
+												devType = "ptz";
 											}
-											float statusCode = 0;
-											String errMsg = jo.getString("error");
-											String statusMsg = "";
-											String statusDetails = "";
-											if (!jo.getBoolean("isEnabled")) {
-												statusCode = BC_DISABLED;
-											} else if (jo.getBoolean("hidden")) {
-												statusCode = BC_HIDDEN;
-											} else if (!jo.getBoolean("isOnline")) {
-												statusCode = BC_NOT_CONNECTED;
-											} else if (jo.getBoolean("tempfull")) {
-												statusCode = BC_TEMPFULL;
-											} else if (jo.getBoolean("isYellow")) {
-												statusCode = BC_YELLOW;
-											} else if (jo.getBoolean("isNoSignal")) {
-												statusCode = BC_NO_SIGNAL;
-												statusMsg = jo.getString("nNoSignal") + " Signal drops";
-											} else if (jo.getBoolean("isTriggered")) {
-												statusCode = BC_TRIGGERED;
-												statusMsg = jo.getString("nTriggers") + " Triggers";
-											} else if (jo.getBoolean("isMotion")) {
-												statusCode = BC_MOTION;
-												statusMsg = jo.getString("nAlerts") + " Alerts";
-											} else if (jo.getBoolean("isPaused")) {
-												statusCode = BC_PAUSED;
-												statusMsg = jo.getString("pause") + " Seconds";
-											} else if (jo.getBoolean("isRecording")) {
-												statusCode = BC_RECORDING;
-												statusMsg = jo.getString("FPS") + " FPS";
-											} else if (jo.getBoolean("isOnline")) {
-												statusCode = BC_CONNECTED;
-												statusMsg = jo.getString("nClips") + " Clips";
+											if (jo.getBoolean("audio")) {
+												devType = devType + "A";
 											}
+											try {
+												// find or create a remote device to link to
+												int camBID = broadcast.updateDevice(0, subBundleName, getName(),
+														devType);
+												if (dbi != null) {
+													dbi.updateItemProperty(subBundleName, "broadcast.id", "" + camBID,
+															true);
+												}
+												float statusCode = 0;
+												String errMsg = jo.getString("error");
+												String statusMsg = "";
+												String statusDetails = "";
+												if (!jo.getBoolean("isEnabled")) {
+													statusCode = BC_DISABLED;
+												} else if (jo.getBoolean("hidden")) {
+													statusCode = BC_HIDDEN;
+												} else if (!jo.getBoolean("isOnline")) {
+													statusCode = BC_NOT_CONNECTED;
+												} else if (jo.getBoolean("tempfull")) {
+													statusCode = BC_TEMPFULL;
+												} else if (jo.getBoolean("isYellow")) {
+													statusCode = BC_YELLOW;
+												} else if (jo.getBoolean("isNoSignal")) {
+													statusCode = BC_NO_SIGNAL;
+													statusMsg = jo.getString("nNoSignal") + " Signal drops";
+												} else if (jo.getBoolean("isTriggered")) {
+													statusCode = BC_TRIGGERED;
+													statusMsg = jo.getString("nTriggers") + " Triggers";
+												} else if (jo.getBoolean("isMotion")) {
+													statusCode = BC_MOTION;
+													statusMsg = jo.getString("nAlerts") + " Alerts";
+												} else if (jo.getBoolean("isPaused")) {
+													statusCode = BC_PAUSED;
+													statusMsg = jo.getString("pause") + " Seconds";
+												} else if (jo.getBoolean("isRecording")) {
+													statusCode = BC_RECORDING;
+													statusMsg = jo.getString("FPS") + " FPS";
+												} else if (jo.getBoolean("isOnline")) {
+													statusCode = BC_CONNECTED;
+													statusMsg = jo.getString("nClips") + " Clips";
+												}
 
-											broadcastStatus(camBID, statusCode, errMsg, statusDetails, statusMsg);
-										} catch (UnsupportedOperationException | JSONException | IOException e) {
-											// throw new InstantiationException(e.getMessage());
-										} catch (twitter4j.JSONException e) {
-											// TODO Auto-generated catch block
-											e.printStackTrace();
+												broadcastStatus(camBID, statusCode, errMsg, statusDetails, statusMsg);
+											} catch (UnsupportedOperationException | JSONException | IOException e) {
+												// throw new InstantiationException(e.getMessage());
+											} catch (twitter4j.JSONException e) {
+												// TODO Auto-generated catch block
+												e.printStackTrace();
+											}
 										}
 									}
 								}
 							}
-						}
 
+						}
+						break;
+					} else {
+						StringBuilder sb = new StringBuilder();
+						if (getErrStr() != null) {
+							sb.append(getErrStr());
+						}
+						setState("respCode:" + respCode + " file empty");
+						broadcastStatusCode = BC_CONTENT_MISSING;
+						if (getConHeaders() != null) {
+							sb.append("Connection Headers:<br>");
+							for (String key : getConHeaders().keySet()) {
+								sb.append(key).append(":").append(getConHeaders().get(key)).append("<br>");
+							}
+						}
+						if (getRespHeaders() != null) {
+							sb.append("Response Headers:<br>");
+							for (Header header : getRespHeaders()) {
+								sb.append(header.getName()).append(":").append(header.getValue()).append("<br>");
+							}
+						}
+						setDetails(sb.toString());
 					}
-					break;
 				} else {
-					StringBuilder sb = new StringBuilder();
-					if (getErrStr() != null) {
-						sb.append(getErrStr());
-					}
-					setState("respCode:" + respCode + " file empty");
-					broadcastStatusCode = BC_CONTENT_MISSING;
-					if (getConHeaders() != null) {
-						sb.append("Connection Headers:<br>");
-						for (String key : getConHeaders().keySet()) {
-							sb.append(key).append(":").append(getConHeaders().get(key)).append("<br>");
-						}
-					}
-					if (getRespHeaders() != null) {
-						sb.append("Response Headers:<br>");
-						for (Header header : getRespHeaders()) {
-							sb.append(header.getName()).append(":").append(header.getValue()).append("<br>");
-						}
-					}
-					setDetails(sb.toString());
+					setState("login failed");
+
 				}
 			} catch (JSONException | NoSuchAlgorithmException e) {
 				setState(e.getMessage());

@@ -86,7 +86,7 @@ public abstract class CheckBase implements CheckItemI {
 				try {
 					broadcastID = broadcast.updateDevice(broadcastID, name, region, broadcastType);
 					if (dbi != null) {
-						dbi.updateItemProperty(name, "broadcast.id", "" + broadcastID);
+						dbi.updateItemProperty(name, "broadcast.id", "" + broadcastID, true);
 					}
 				} catch (UnsupportedOperationException | JSONException | IOException e) {
 					throw new InstantiationException(e.getMessage());

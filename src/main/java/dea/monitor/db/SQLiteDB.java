@@ -22,18 +22,31 @@ public class SQLiteDB implements DBInterface {
 	private static final String COL_NAME = "itemName";
 	private static final String COL_KEY = "propName";
 	private static final String COL_VAL = "propVal";
+	private static final String COL_ACTIVE = "active";
 
 	// SQL statement for creating a new table
 	private static final String createItemsSql = "CREATE TABLE IF NOT EXISTS " + TABLE_ID + " (" + COL_ID
 			+ " integer PRIMARY KEY AUTOINCREMENT," + " " + COL_NAME + " text NOT NULL, " + COL_KEY + " text NOT NULL, "
-			+ COL_VAL + " text NOT NULL);";
+			+ COL_VAL + " text NOT NULL," + COL_ACTIVE + " integer DEFAULT 1);";
 
 	private Connection conn;
 
+	/**
+	 * Get instance of class and open connection to the DB
+	 * 
+	 * @param dbPath path the DB file
+	 * @throws SQLException if problem encountered getting a connection to the DB
+	 */
 	public SQLiteDB(String dbPath) throws SQLException {
 		getConnection(dbPath);
 	}
 
+	/**
+	 * Get instance of class and open connection to the DB
+	 * 
+	 * @param dbPath path the DB file
+	 * @throws SQLException if problem encountered getting a connection to the DB
+	 */
 	public Connection getConnection(String dbPath) throws SQLException {
 		if (conn == null) {
 			File f = new File(dbPath);
@@ -44,7 +57,7 @@ public class SQLiteDB implements DBInterface {
 			conn = DriverManager.getConnection(url);
 			if (conn != null) {
 				DatabaseMetaData meta = conn.getMetaData();
-				System.out.println("The driver name is " + meta.getDriverName());
+				log.info("The driver name is " + meta.getDriverName());
 				if (isNew)
 					log.warn("A new database has been created.");
 				try (Statement stmt = conn.createStatement()) {
@@ -58,6 +71,9 @@ public class SQLiteDB implements DBInterface {
 		return conn;
 	}
 
+	/**
+	 * Get a statement to use
+	 */
 	public Statement getStatement() throws SQLException {
 		return conn.createStatement();
 	}
@@ -73,39 +89,75 @@ public class SQLiteDB implements DBInterface {
 			log.error("Failed adding item properties:" + name, e);
 		}
 
+		log.info("Removed " + rtn + " records");
 		return rtn;
 	}
 
-	public int insertItemProperty(String name, String key, String val) {
+	public int insertItemProperty(String name, String key, String val, boolean enabled) {
 		int rtn = 0;
-		String sql = "INSERT INTO " + TABLE_ID + "(" + COL_NAME + ", " + COL_KEY + ", " + COL_VAL + ") VALUES(?, ?, ?)";
+		String sql = "INSERT INTO " + TABLE_ID + "(" + COL_NAME + ", " + COL_KEY + ", " + COL_VAL + ", " + COL_ACTIVE
+				+ ") VALUES(?, ?, ?, ?)";
 		log.info("Adding item property:" + name + ":" + key + ":" + val);
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, name);
 			stmt.setString(2, key);
 			stmt.setString(3, val);
+			if (enabled) {
+				stmt.setInt(4, 1);
+			} else {
+				stmt.setInt(4, 0);
+			}
 			rtn = stmt.executeUpdate();
 		} catch (SQLException e) {
 			log.error("Failed adding item property:" + name + ":" + key + ":" + val, e);
 		}
 
+		log.info("Inserted " + rtn + " records");
 		return rtn;
 	}
 
-	public int updateItemProperty(String name, String key, String val) {
+	public int setEnabledItem(String name, boolean isActive) {
 		int rtn = 0;
-		String sql = "UPDATE  " + TABLE_ID + " SET " + COL_VAL + "=? WHERE " + COL_NAME + "=? AND " + COL_KEY + "=?";
+		String sql = "UPDATE " + TABLE_ID + " SET " + COL_ACTIVE + "=? WHERE " + COL_NAME + "=?";
+
+		log.info("Updating item properties active flag:" + name + ":" + isActive);
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			if (isActive)
+				stmt.setInt(1, 1);
+			else
+				stmt.setInt(1, 0);
+			stmt.setString(2, name);
+
+			rtn = stmt.executeUpdate();
+		} catch (SQLException e) {
+			log.error("Failed Updating item properties active flag:" + name + ":" + isActive, e);
+		}
+
+		log.info("Updated " + rtn + " records");
+		return rtn;
+	}
+
+	public int updateItemProperty(String name, String key, String val, boolean enabled) {
+		int rtn = 0;
+		String sql = "UPDATE " + TABLE_ID + " SET " + COL_VAL + "=?, " + COL_ACTIVE + "=? WHERE " + COL_NAME + "=? AND "
+				+ COL_KEY + "=?";
 
 		log.info("Updating item property:" + name + ":" + key + ":" + val);
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, val);
-			stmt.setString(2, name);
-			stmt.setString(3, key);
+			if (enabled) {
+				stmt.setInt(2, 1);
+			} else {
+				stmt.setInt(2, 0);
+			}
+			stmt.setString(3, name);
+			stmt.setString(4, key);
 			rtn = stmt.executeUpdate();
 		} catch (SQLException e) {
-			log.error("Failed adding item property:" + name + ":" + key + ":" + val, e);
+			log.error("Failed Updating item property:" + name + ":" + key + ":" + val, e);
 		}
 
+		log.info("Updated " + rtn + " records");
 		return rtn;
 	}
 
@@ -116,7 +168,6 @@ public class SQLiteDB implements DBInterface {
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, name);
 			ResultSet rs = stmt.executeQuery();
-
 			// loop through the result set
 			while (rs.next()) {
 				rtn.put(rs.getString(COL_KEY), rs.getString(COL_VAL));
@@ -128,13 +179,15 @@ public class SQLiteDB implements DBInterface {
 		return rtn;
 	}
 
-	public Map<String, String> getChecks() {
+	public Map<String, String> getChecks(boolean includeDisabled) {
 		Map<String, String> rtn = new HashMap<String, String>();
 		String sql = "SELECT " + COL_NAME + "," + COL_VAL + " FROM " + TABLE_ID + " WHERE " + COL_KEY + "='class'";
+		if (!includeDisabled) {
+			sql = sql + " AND " + COL_ACTIVE + "=1";
+		}
 		log.info("Getting checks:");
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			ResultSet rs = stmt.executeQuery();
-
 			// loop through the result set
 			while (rs.next()) {
 				rtn.put(rs.getString(COL_NAME), rs.getString(COL_VAL));
@@ -146,4 +199,20 @@ public class SQLiteDB implements DBInterface {
 		return rtn;
 	}
 
+	public void close() {
+		if (conn != null) {
+			try {
+				conn.close();
+			} catch (SQLException e) {
+				log.error("Error closing connnection", e);
+			}
+		}
+
+	}
+
+	@Override
+	protected void finalize() throws Throwable {
+		close();
+		super.finalize();
+	}
 }

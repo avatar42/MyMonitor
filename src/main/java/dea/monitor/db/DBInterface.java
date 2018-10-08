@@ -6,11 +6,25 @@ import java.sql.Statement;
 import java.util.Map;
 
 public interface DBInterface {
+
+	/**
+	 * Open a connection.
+	 * 
+	 * @param dbPath path to DB file
+	 * @return Connection reference
+	 * @throws SQLException
+	 */
 	Connection getConnection(String dbPath) throws SQLException;
 
+	/**
+	 * 
+	 * @return
+	 * @throws SQLException
+	 */
 	Statement getStatement() throws SQLException;
 
 	/**
+	 * Delete all the entries for check name.
 	 * 
 	 * @param name of item
 	 * @return either (1) the row count for SQL Data Manipulation Language (DML)
@@ -24,9 +38,10 @@ public interface DBInterface {
 	 * @param name
 	 * @param key
 	 * @param val
-	 * @return
+	 * @param enabled
+	 * @return rows changed
 	 */
-	int insertItemProperty(String name, String key, String val);
+	int insertItemProperty(String name, String key, String val, boolean enabled);
 
 	/**
 	 * Update item property in DB
@@ -34,9 +49,10 @@ public interface DBInterface {
 	 * @param name
 	 * @param key
 	 * @param val
-	 * @return
+	 * @param enabled
+	 * @return rows changed
 	 */
-	int updateItemProperty(String name, String key, String val);
+	int updateItemProperty(String name, String key, String val, boolean enabled);
 
 	/**
 	 * Get all the properties for an item
@@ -49,9 +65,11 @@ public interface DBInterface {
 	/**
 	 * Get all the check names and classes indexed by name
 	 * 
+	 * @param includeDisabled include the items marked disabled.
+	 * 
 	 * @return
 	 */
-	Map<String, String> getChecks();
+	Map<String, String> getChecks(boolean includeDisabled);
 
 	/**
 	 * Mark a check active / inactive
@@ -60,4 +78,9 @@ public interface DBInterface {
 	 * @param isActive
 	 */
 	int setEnabledItem(String name, boolean isActive);
+
+	/**
+	 * Close the connect if still open.
+	 */
+	void close();
 }
