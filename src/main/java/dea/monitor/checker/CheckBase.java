@@ -78,22 +78,28 @@ public abstract class CheckBase implements CheckItemI {
 			reset = (ResetI) hiClass.newInstance();
 		}
 		clsStr = getBundleVal(String.class, "broadcast.class", null);
+
+		// load child props and broadcastType
+		loadBundle();
+
 		if (clsStr != null) {
 			Class<?> hiClass = Class.forName(clsStr);
 			broadcast = (BroadcastInterface) hiClass.newInstance();
 			broadcastID = getBundleVal(Integer.class, "broadcast.id", 0);
-			if (broadcastID == 0) {
-				try {
-					broadcastID = broadcast.updateDevice(broadcastID, name, region, broadcastType);
+//			if (broadcastID == 0) {
+			try {
+				int bid = broadcast.updateDevice(broadcastID, name, region, broadcastType);
+				if (broadcastID == 0) {
+					broadcastID = bid;
 					if (dbi != null) {
-						dbi.updateItemProperty(name, "broadcast.id", "" + broadcastID, true);
+						dbi.insertItemProperty(name, "broadcast.id", "" + broadcastID, true);
 					}
-				} catch (UnsupportedOperationException | JSONException | IOException e) {
-					throw new InstantiationException(e.getMessage());
 				}
+			} catch (UnsupportedOperationException | JSONException | IOException e) {
+				throw new InstantiationException(e.getMessage());
 			}
+//			}
 		}
-		loadBundle();
 	}
 
 	public DBInterface getDbi() {
