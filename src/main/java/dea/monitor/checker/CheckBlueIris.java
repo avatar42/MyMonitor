@@ -237,68 +237,72 @@ public class CheckBlueIris extends CheckUrl {
 								if (dbi != null) {
 									if (broadcast != null) {
 										Map<String, String> camProps = dbi.getItemProperties(subBundleName);
+										int camBID = 0;
 										if (!camProps.containsKey("broadcast.id")) {
-											String devType = "cam";
-											if (jo.getBoolean("ptz")) {
-												devType = "ptz";
-											}
-											if (jo.getBoolean("audio")) {
-												devType = devType + "A";
-											}
 											try {
+												String devType = "cam";
+												if (jo.getBoolean("ptz")) {
+													devType = "ptz";
+												}
+												if (jo.getBoolean("audio")) {
+													devType = devType + "A";
+												}
 												// find or create a remote device to link to
-												int camBID = broadcast.updateDevice(0, subBundleName, getName(),
+												camBID = broadcast.updateDevice(camBID, subBundleName, getRegion(),
 														devType);
 												if (dbi != null) {
-													dbi.updateItemProperty(subBundleName, "broadcast.id", "" + camBID,
+													dbi.insertItemProperty(subBundleName, "broadcast.id", "" + camBID,
 															true);
 												}
-												float statusCode = 0;
-												String errMsg = jo.getString("error");
-												String statusMsg = "";
-												String statusDetails = "";
-												if (!jo.getBoolean("isEnabled")) {
-													statusCode = BC_DISABLED;
-												} else if (jo.getBoolean("hidden")) {
-													statusCode = BC_HIDDEN;
-												} else if (!jo.getBoolean("isOnline")) {
-													statusCode = BC_NOT_CONNECTED;
-												} else if (jo.getBoolean("tempfull")) {
-													statusCode = BC_TEMPFULL;
-												} else if (jo.getBoolean("isYellow")) {
-													statusCode = BC_YELLOW;
-												} else if (jo.getBoolean("isNoSignal")) {
-													statusCode = BC_NO_SIGNAL;
-													statusMsg = jo.getString("nNoSignal") + " Signal drops";
-												} else if (jo.getBoolean("isTriggered")) {
-													statusCode = BC_TRIGGERED;
-													statusMsg = jo.getString("nTriggers") + " Triggers";
-												} else if (jo.getBoolean("isMotion")) {
-													statusCode = BC_MOTION;
-													statusMsg = jo.getString("nAlerts") + " Alerts";
-												} else if (jo.getBoolean("isPaused")) {
-													statusCode = BC_PAUSED;
-													statusMsg = jo.getString("pause") + " Seconds";
-												} else if (jo.getBoolean("isRecording")) {
-													statusCode = BC_RECORDING;
-													statusMsg = jo.getString("FPS") + " FPS";
-												} else if (jo.getBoolean("isOnline")) {
-													statusCode = BC_CONNECTED;
-													statusMsg = jo.getString("nClips") + " Clips";
-												}
-
-												broadcastStatus(camBID, statusCode, errMsg, statusDetails, statusMsg);
-											} catch (UnsupportedOperationException | JSONException | IOException e) {
-												// throw new InstantiationException(e.getMessage());
-											} catch (twitter4j.JSONException e) {
+											} catch (twitter4j.JSONException | IOException e) {
 												// TODO Auto-generated catch block
 												e.printStackTrace();
 											}
+										} else {
+											camBID = Integer.parseInt(camProps.get("broadcast.id"));
+										}
+										try {
+											float statusCode = 0;
+											String errMsg = jo.getString("error");
+											String statusMsg = "";
+											String statusDetails = "";
+											if (!jo.getBoolean("isEnabled")) {
+												statusCode = BC_DISABLED;
+											} else if (jo.getBoolean("hidden")) {
+												statusCode = BC_HIDDEN;
+											} else if (!jo.getBoolean("isOnline")) {
+												statusCode = BC_NOT_CONNECTED;
+											} else if (jo.getBoolean("tempfull")) {
+												statusCode = BC_TEMPFULL;
+											} else if (jo.getBoolean("isYellow")) {
+												statusCode = BC_YELLOW;
+											} else if (jo.getBoolean("isNoSignal")) {
+												statusCode = BC_NO_SIGNAL;
+												statusMsg = jo.getString("nNoSignal") + " Signal drops";
+											} else if (jo.getBoolean("isTriggered")) {
+												statusCode = BC_TRIGGERED;
+												statusMsg = jo.getString("nTriggers") + " Triggers";
+											} else if (jo.getBoolean("isMotion")) {
+												statusCode = BC_MOTION;
+												statusMsg = jo.getString("nAlerts") + " Alerts";
+											} else if (jo.getBoolean("isPaused")) {
+												statusCode = BC_PAUSED;
+												statusMsg = jo.getString("pause") + " Seconds";
+											} else if (jo.getBoolean("isRecording")) {
+												statusCode = BC_RECORDING;
+												statusMsg = jo.getString("FPS") + " FPS";
+											} else if (jo.getBoolean("isOnline")) {
+												statusCode = BC_CONNECTED;
+												statusMsg = jo.getString("nClips") + " Clips";
+											}
+
+											broadcastStatus(camBID, statusCode, errMsg, statusDetails, statusMsg);
+										} catch (UnsupportedOperationException | JSONException e) {
+											// throw new InstantiationException(e.getMessage());
 										}
 									}
 								}
 							}
-
 						}
 						break;
 					} else {

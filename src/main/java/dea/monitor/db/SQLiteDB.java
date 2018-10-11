@@ -153,6 +153,9 @@ public class SQLiteDB implements DBInterface {
 			stmt.setString(3, name);
 			stmt.setString(4, key);
 			rtn = stmt.executeUpdate();
+			if (rtn == 0) {
+				rtn = insertItemProperty(name, key, val, enabled);
+			}
 		} catch (SQLException e) {
 			log.error("Failed Updating item property:" + name + ":" + key + ":" + val, e);
 		}
