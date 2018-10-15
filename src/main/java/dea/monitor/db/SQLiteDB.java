@@ -1,6 +1,7 @@
 package dea.monitor.db;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -8,11 +9,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import dea.monitor.broadcast.BroadcastInterface;
 
 public class SQLiteDB implements DBInterface {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
@@ -101,7 +105,12 @@ public class SQLiteDB implements DBInterface {
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 			stmt.setString(1, name);
 			stmt.setString(2, key);
-			stmt.setString(3, val);
+
+			if (val == null)
+				stmt.setNull(3, Types.VARCHAR);
+			else
+				stmt.setString(3, val);
+
 			if (enabled) {
 				stmt.setInt(4, 1);
 			} else {
@@ -133,6 +142,29 @@ public class SQLiteDB implements DBInterface {
 			log.error("Failed Updating item properties active flag:" + name + ":" + isActive, e);
 		}
 
+		if (!isActive) {
+			BroadcastInterface broadcast;
+			Map<String, String> camProps = getItemProperties(name);
+			String clsStr = camProps.get("broadcast.class");
+
+			try {
+				if (clsStr != null) {
+					Class<?> hiClass = Class.forName(clsStr);
+					broadcast = (BroadcastInterface) hiClass.newInstance();
+					if (broadcast != null) {
+						int camBID = 0;
+						if (!camProps.containsKey("broadcast.id")) {
+							camBID = Integer.parseInt(camProps.get("broadcast.id"));
+							broadcast.sendVal(camBID, 0f);
+							broadcast.sendStatusString(camBID, "Disabled");
+						}
+					}
+				}
+			} catch (NumberFormatException | ClassNotFoundException | InstantiationException | IllegalAccessException
+					| UnsupportedOperationException | IOException e) {
+				log.error("Failed to mark remote device disabled.", e);
+			}
+		}
 		log.info("Updated " + rtn + " records");
 		return rtn;
 	}
@@ -144,7 +176,11 @@ public class SQLiteDB implements DBInterface {
 
 		log.info("Updating item property:" + name + ":" + key + ":" + val);
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-			stmt.setString(1, val);
+			if (val == null)
+				stmt.setNull(1, Types.VARCHAR);
+			else
+				stmt.setString(1, val);
+
 			if (enabled) {
 				stmt.setInt(2, 1);
 			} else {
@@ -158,6 +194,23 @@ public class SQLiteDB implements DBInterface {
 			}
 		} catch (SQLException e) {
 			log.error("Failed Updating item property:" + name + ":" + key + ":" + val, e);
+		}
+
+		log.info("Updated " + rtn + " records");
+		return rtn;
+	}
+
+	public int renameItem(String oldName, String newName) {
+		int rtn = 0;
+		String sql = "UPDATE " + TABLE_ID + " SET " + COL_NAME + "=? WHERE " + COL_NAME + "=?";
+
+		log.info("Renaming item:" + oldName + " to " + newName);
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			stmt.setString(1, newName);
+			stmt.setString(2, oldName);
+			rtn = stmt.executeUpdate();
+		} catch (SQLException e) {
+			log.error("Failed Renaming item:" + oldName + " to " + newName, e);
 		}
 
 		log.info("Updated " + rtn + " records");

@@ -1,0 +1,6 @@
+region = LAN2
+description = meteobridge Open Weather Map upload
+httpsURL = http://192.168.2.139/cgi-bin/eventlog.cgi?8
+login=meteobridge
+password=meteobridge
+maxOld=600

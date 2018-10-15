@@ -86,6 +86,27 @@ public interface BroadcastInterface {
 	void sendRegionChg(Integer refID, String name) throws IOException, UnsupportedOperationException;
 
 	/**
+	 * Set region on a remote object / device.
+	 * 
+	 * @param refID ID used to reference the device in this system.
+	 * @param type  value to set it to
+	 * @throws IOException                   an error was encountered sending
+	 * @throws UnsupportedOperationException if this class does not support this
+	 */
+	void sendTypeChg(Integer refID, String type) throws IOException, UnsupportedOperationException;
+
+	/**
+	 * Set address field on remote object / device. Generally this is the IP address
+	 * used by a check
+	 * 
+	 * @param refID   ID used to reference the device in this system.
+	 * @param address value to set it to
+	 * @throws IOException                   an error was encountered sending
+	 * @throws UnsupportedOperationException if this class does not support this
+	 */
+	void sendAddressChg(Integer refID, String address) throws IOException, UnsupportedOperationException;
+
+	/**
 	 * Returns the value for a specific setting.
 	 * 
 	 * @param setting to get
@@ -147,8 +168,9 @@ public interface BroadcastInterface {
 	 * @param deviceName in remote system
 	 * @param region     to use in remote system
 	 * @param type       of device in remote system
+	 * @param address    TODO
 	 * @return id of device in remote system. Same as refID if not new object.
 	 */
-	Integer updateDevice(Integer refID, String deviceName, String region, String type)
+	Integer updateDevice(Integer refID, String deviceName, String region, String type, String address)
 			throws JSONException, IOException;
 }

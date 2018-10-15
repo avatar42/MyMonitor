@@ -8,9 +8,9 @@ public class CheckCam extends CheckUrl {
 	private long minSize = 0;
 
 	public void loadBundle() {
+		broadcastType = getBundleVal(String.class, "broadcastType", "cam");
 		super.loadBundle();
 		minSize = getBundleVal(Long.class, "minSize", minSize);
-		broadcastType = "cam";
 	}
 
 	public void run() {

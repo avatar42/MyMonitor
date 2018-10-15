@@ -32,9 +32,9 @@ public class CheckWu extends CheckUrl {
 	Integer maxOld = 0;
 
 	public void loadBundle() {
+		broadcastType = getBundleVal(String.class, "broadcastType", "wu");
 		super.loadBundle();
 		maxOld = getBundleVal(Integer.class, "maxOld", maxOld);
-		broadcastType = "wu";
 	}
 
 	public void run() {

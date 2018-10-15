@@ -1,8 +1,6 @@
 package dea.monitor.tools;
 
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ResourceBundle;
 
 import org.slf4j.Logger;
@@ -33,21 +31,34 @@ public class Props2DB {
 	/**
 	 * Replace all properties for each check listed in the checks.properties file.
 	 */
-	public void convert() {
+	public int convert() {
+		int cnt = 0;
 		for (String key : bundle.keySet()) {
 			if (key.startsWith("check.")) {
 				String className = bundle.getString(key);
 				String itemName = key.substring(6);
-				dbi.clearItem(itemName);
+				cnt += dbi.clearItem(itemName);
 				ResourceBundle itemBundle = ResourceBundle.getBundle(itemName);
 				log.info(itemName + ":class:" + className);
-				dbi.insertItemProperty(itemName, "class", className, true);
+				cnt += dbi.insertItemProperty(itemName, "class", className, true);
 				for (String itemkey : itemBundle.keySet()) {
-					dbi.insertItemProperty(itemName, itemkey, itemBundle.getString(itemkey), true);
+					cnt += dbi.insertItemProperty(itemName, itemkey, itemBundle.getString(itemkey), true);
 				}
 			}
 		}
+		return cnt;
+	}
 
+	/**
+	 * Replace all properties for itemName with the ones in the
+	 * [itemName].properties file. And with the className from the checks property
+	 * file.
+	 * 
+	 * @param itemName
+	 */
+	public int addProps(String itemName) {
+		String className = bundle.getString("check." + itemName);
+		return addProps(itemName, className);
 	}
 
 	/**
@@ -57,14 +68,16 @@ public class Props2DB {
 	 * @param itemName
 	 * @param className to use for the "class" property
 	 */
-	public void addProps(String itemName, String className) {
-		dbi.clearItem(itemName);
+	public int addProps(String itemName, String className) {
+		int cnt = dbi.clearItem(itemName);
 		ResourceBundle itemBundle = ResourceBundle.getBundle(itemName);
 		log.info(itemName + ":class:" + className);
-		dbi.insertItemProperty(itemName, "class", className, true);
+		cnt += dbi.insertItemProperty(itemName, "class", className, true);
 		for (String itemkey : itemBundle.keySet()) {
-			dbi.insertItemProperty(itemName, itemkey, itemBundle.getString(itemkey), true);
+			cnt += dbi.insertItemProperty(itemName, itemkey, itemBundle.getString(itemkey), true);
 		}
+
+		return cnt;
 	}
 
 	/**
@@ -76,43 +89,56 @@ public class Props2DB {
 	 * @param value
 	 * @param enabled
 	 */
-	public void updateProp(String itemName, String keyName, String value, boolean enabled) {
-		if (dbi.updateItemProperty(itemName, keyName, value, enabled) == 0)
-			dbi.insertItemProperty(itemName, keyName, value, true);
+	public int updateProp(String itemName, String keyName, String value, boolean enabled) {
+		int cnt = dbi.updateItemProperty(itemName, keyName, value, enabled);
+		if (cnt == 0)
+			cnt = dbi.insertItemProperty(itemName, keyName, value, true);
+		return cnt;
 	}
 
 	public static void usage() {
-		System.err.println("USAGE: Props2DB all | -b name | -d name | -e name | name class | name key value");
+		System.err.println("USAGE: Props2DB all | +-b name | +-e name | name class | name key value");
 		System.err.println("all = replace all the props in the DB");
-		System.err.println("+b name = add broadcast.class to name's properties");
+		System.err.println("With 2 arguments");
+		System.err.println("+b name = add broadcast.class (default.broadcast.class) to name's properties");
 		System.err.println("-b name = disable broadcast.class to name's properties");
-		System.err.println("-d name = disable all name's properties");
-		System.err.println("-e name = enable all name's properties");
+		System.err.println("-e name = disable all name's properties");
+		System.err.println("+e name = reenable all name's properties");
 		System.err.println("name full.path.to.class = add a DB entry for name to use checker class");
-		System.err.println("name key value = add a DB entry for name to use checker class");
+		System.err.println("With 3 arguments");
+		System.err.println("-r oldName newName = rename a check (monitor button name / remote object name)");
+		System.err.println("name key value = add a DB entry for name of property key with value");
 	}
 
 	public void parse(String[] args) {
+		int cnt = 0;
 		if (args == null || args.length == 0) {
 			usage();
 		} else if (args[0].equalsIgnoreCase("all")) {
-			convert();
+			cnt = convert();
 		} else if (args.length == 2) {
 			if ("+b".equals(args[0])) {
-				updateProp(args[1], "broadcast.class", "dea.monitor.broadcast.Homeseer", true);
+				cnt = updateProp(args[1], "broadcast.class", bundle.getString("default.broadcast.class"), true);
 			} else if ("-b".equals(args[0])) {
-				updateProp(args[1], "broadcast.class", "dea.monitor.broadcast.Homeseer", false);
-			} else if ("-d".equals(args[0])) {
-				dbi.setEnabledItem(args[1], false);
+				cnt = updateProp(args[1], "broadcast.class", bundle.getString("default.broadcast.class"), false);
 			} else if ("-e".equals(args[0])) {
-				dbi.setEnabledItem(args[1], true);
+				cnt = dbi.setEnabledItem(args[1], false);
+			} else if ("+e".equals(args[0])) {
+				cnt = dbi.setEnabledItem(args[1], true);
 			} else {
-				addProps(args[0], args[1]);
+				cnt = addProps(args[0], args[1]);
+			}
+		} else if (args.length == 3) {
+			if ("-r".equals(args[0])) {
+				cnt = dbi.renameItem(args[1], args[2]);
+			} else {
+				cnt = updateProp(args[0], args[1], args[2], false);
 			}
 		} else {
 			usage();
 		}
 
+		System.out.println("Changed " + cnt + " records");
 	}
 
 	/**

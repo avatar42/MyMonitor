@@ -105,6 +105,22 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		}
 	}
 
+	public void sendAddressChg(Integer refID, String name) throws IOException, UnsupportedOperationException {
+		try {
+			setdeviceproperty(refID, "Address", name);
+		} catch (MalformedURLException | JSONException e) {
+			throw new IOException(e);
+		}
+	}
+
+	public void sendTypeChg(Integer refID, String type) throws IOException, UnsupportedOperationException {
+		try {
+			setdeviceproperty(refID, "Device_Type_String", type);
+		} catch (MalformedURLException | JSONException e) {
+			throw new IOException(e);
+		}
+	}
+
 	public Set<String> getRegions() throws JSONException, IOException {
 		HashSet<String> set = new HashSet<String>();
 		JSONObject obj = getlocations();
@@ -134,7 +150,7 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		return id;
 	}
 
-	public Integer updateDevice(Integer refID, String deviceName, String region, String type)
+	public Integer updateDevice(Integer refID, String deviceName, String region, String type, String address)
 			throws JSONException, IOException {
 		if (deviceName == null) {
 			throw new IOException("deviceName is required");
@@ -167,7 +183,7 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		// could not find by name or refID so add one.
 		if (obj == null) {
 			// create a new object
-			runevent(eventGroup, createEvent+type);
+			runevent(eventGroup, createEvent + type);
 			// get new device
 			Map<String, JSONObject> map = getstatus(null, null, location2);
 			if (map != null) {
@@ -187,6 +203,12 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 				sendNameChg(refID, deviceName);
 			if (!region.equals(obj.get("location")))
 				sendRegionChg(refID, region);
+			if (!type.equals(obj.get("device_type_string")))
+				sendTypeChg(refID, "MyMonitor-" + type);
+
+			// unfortunately there does not seem to be a way to read this from here.
+			if (address != null)
+				sendAddressChg(refID, address);
 			log.info("Remote device updated");
 		}
 
@@ -233,7 +255,7 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 	 * @throws IOException   if no JSON reply was received
 	 */
 	private JSONObject getJson(URL httpsURL) throws JSONException, IOException {
-		String s = getUrl(httpsURL);
+		String s = getUrl(httpsURL, false);
 		log.info(s);
 		// Calls return JSON, "error" or some other error message
 		// Often the JSON is just a simple { "Response":"ok" }
@@ -285,7 +307,7 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		}
 		JSONObject obj = getJson(new URL(sb.toString()));
 
-		log.debug(obj.toString());
+		log.info(obj.toString());
 		JSONArray devices = obj.getJSONArray("Devices");
 		for (int i = 0; i < devices.length(); i++) {
 			JSONObject device = devices.getJSONObject(i);
@@ -330,7 +352,6 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 
 	}
 
-	//
 	/**
 	 * Set the property a device given the device's reference number "ref", and
 	 * value "value". For example, the following would set the status string to
@@ -492,7 +513,7 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 			System.out.println("\n getDevices:" + item.getDevices());
 			System.out.println("\n getDevicesByRegion:" + item.getDevicesByRegion("MyMonitor"));
 			System.out.println("\n getRegions:" + item.getRegions());
-			System.out.println("\n update Obj:" + item.updateDevice(0, "dea42", "Hosting", "web"));
+			System.out.println("\n update Obj:" + item.updateDevice(0, "dea42", "Hosting", "web", null));
 //			Homeseer hs = new Homeseer();
 //			hs.getevents();
 		} catch (Exception e) {

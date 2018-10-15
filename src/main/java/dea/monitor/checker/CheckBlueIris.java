@@ -147,6 +147,12 @@ public class CheckBlueIris extends CheckUrl {
 		return sb.toString();
 	}
 
+	/**
+	 * Log onto the Blue Iris web server fo get and access token.
+	 * 
+	 * @return true is login was successful otherwise false.
+	 * @throws NoSuchAlgorithmException
+	 */
 	public boolean jsonLogin() throws NoSuchAlgorithmException {
 		JSONObject params = new JSONObject();
 
@@ -154,16 +160,22 @@ public class CheckBlueIris extends CheckUrl {
 		// get session
 		String s = postBi(params);
 
-		// sent response to login challenge
-		JSONObject resp = JSONObject.fromObject(s);
-		session = resp.getString("session");
-		response = genResponse();
-		params.put("session", session);
-		params.put("response", response);
-		s = postBi(params);
-		resp = JSONObject.fromObject(s);
+		try {
+			// sent response to login challenge
+			JSONObject resp = JSONObject.fromObject(s);
 
-		return "success".equals(resp.getString("result"));
+			session = resp.getString("session");
+			response = genResponse();
+			params.put("session", session);
+			params.put("response", response);
+			s = postBi(params);
+			resp = JSONObject.fromObject(s);
+
+			return "success".equals(resp.getString("result"));
+		} catch (Exception e) {
+			log.error("Faled to parse response:" + s, e);
+		}
+		return false;
 	}
 
 	/**
@@ -249,7 +261,7 @@ public class CheckBlueIris extends CheckUrl {
 												}
 												// find or create a remote device to link to
 												camBID = broadcast.updateDevice(camBID, subBundleName, getRegion(),
-														devType);
+														devType, null);
 												if (dbi != null) {
 													dbi.insertItemProperty(subBundleName, "broadcast.id", "" + camBID,
 															true);

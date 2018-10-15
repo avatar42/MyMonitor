@@ -165,6 +165,8 @@ public interface CheckItemI extends Runnable {
 	float BC_NO_SIGNAL = 9f;
 	float BC_DISABLED = 10f;
 	float BC_YELLOW = 10f;
+
+	float BC_SSH_ERROR = 20f;
 	
 	float BC_EXCEPTION = 100f;
 	// 200-507 See HttpStatus

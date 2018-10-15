@@ -60,12 +60,12 @@ public class CheckTivo extends CheckUrl {
 	private String outPath;
 
 	public void loadBundle() {
+		broadcastType = getBundleVal(String.class, "broadcastType", "tivo");
 		super.loadBundle();
 		minSize = getBundleVal(Integer.class, "minSize", minSize);
 		maxShort = getBundleVal(Long.class, "maxShort", maxShort);
 		saveNPL = getBundleVal(Boolean.class, "saveNPL", saveNPL);
 		outPath = getBundleVal(String.class, "exportPath", getName() + ".npl.csv");
-		broadcastType = "tivo";
 	}
 
 	public NodeList getNodeList(XPath xpath, Document doc, String expr) {
@@ -154,7 +154,7 @@ public class CheckTivo extends CheckUrl {
 		FileWriter writer = null;
 		for (int i = 0; i < retries; i++) {
 			try {
-				String xml = getUrl(httpsURL);
+				String xml = getUrl(httpsURL,false);
 				if (respCode == HttpURLConnection.HTTP_OK && xml != null) { //
 					// <TiVoContainer
 					// xmlns="http://www.tivo.com/developer/calypso-protocol-1.6/">
@@ -294,7 +294,7 @@ public class CheckTivo extends CheckUrl {
 								}
 							}
 							if (saveNPL) {
-								xml = getUrl(new URL(httpsURL.toString() + itemCnt + "&AnchorOffset=" + readItems));
+								xml = getUrl(new URL(httpsURL.toString() + itemCnt + "&AnchorOffset=" + readItems),false);
 							}
 						}
 						if (shortCnt > 0) {

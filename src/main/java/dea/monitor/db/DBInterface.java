@@ -27,8 +27,7 @@ public interface DBInterface {
 	 * Delete all the entries for check name.
 	 * 
 	 * @param name of item
-	 * @return either (1) the row count for SQL Data Manipulation Language (DML)
-	 *         statements or (2) 0 for SQL statements that return nothing
+	 * @return number of records removed
 	 */
 	int clearItem(String name);
 
@@ -39,7 +38,7 @@ public interface DBInterface {
 	 * @param key
 	 * @param val
 	 * @param enabled
-	 * @return rows changed
+	 * @return number of records changed
 	 */
 	int insertItemProperty(String name, String key, String val, boolean enabled);
 
@@ -50,22 +49,30 @@ public interface DBInterface {
 	 * @param key
 	 * @param val
 	 * @param enabled
-	 * @return rows changed
+	 * @return number of records changed
 	 */
 	int updateItemProperty(String name, String key, String val, boolean enabled);
 
 	/**
+	 * Rename checker set
+	 * @param oldName
+	 * @param newName
+	 * @return number of records changed
+	 */
+	int renameItem(String oldName, String newName);
+	
+	/**
 	 * Get all the properties for an item
 	 * 
 	 * @param name
-	 * @return
+	 * @return Map with props or empty Map is not found 
 	 */
 	Map<String, String> getItemProperties(String name);
 
 	/**
 	 * Get all the check names and classes indexed by name
 	 * 
-	 * @param includeDisabled include the items marked disabled.
+	 * @param includeDisabled if true include the items marked disabled.
 	 * 
 	 * @return
 	 */

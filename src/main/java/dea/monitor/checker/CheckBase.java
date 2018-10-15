@@ -18,6 +18,7 @@ import dea.monitor.broadcast.BroadcastInterface;
 import dea.monitor.db.DBInterface;
 import dea.monitor.db.SQLiteDB;
 import dea.monitor.reset.ResetI;
+import dea.monitor.tools.Props2DB;
 import twitter4j.JSONException;
 
 public abstract class CheckBase implements CheckItemI {
@@ -51,6 +52,8 @@ public abstract class CheckBase implements CheckItemI {
 	protected String broadcastStatusString = null;
 	// type of device on the receiving system
 	protected String broadcastType = "web";
+	// if not null the custom address to use for the remote device.
+	protected String broadcastAddr;
 	// DB interface class
 	protected DBInterface dbi;
 	// Reset interface class
@@ -63,15 +66,32 @@ public abstract class CheckBase implements CheckItemI {
 	 */
 	public void loadBundle(String bundleName)
 			throws ClassNotFoundException, InstantiationException, IllegalAccessException {
-		if (dbi == null)
+		if (dbi == null) {
 			bundle = ResourceBundle.getBundle(bundleName);
-		else
+		} else {
 			props = dbi.getItemProperties(bundleName);
+			if (props.isEmpty()) {
+				// if using DB but not probs found then add then to the DB
+				try {
+					Props2DB p2b = new Props2DB();
+					p2b.addProps(bundleName, this.getClass().getName());
+					props = dbi.getItemProperties(bundleName);
+				} catch (SQLException e) {
+					throw new InstantiationException(e.getMessage());
+				}
+			}
+		}
 
 		name = bundleName;
+		// uncomment to bulk set all the checkers of this type to broadcast to Homeseer
+		getBundleVal(String.class, "broadcast.class", "dea.monitor.broadcast.Homeseer");
+
 		wait = getBundleVal(Integer.class, "wait", wait);
 		description = getBundleVal(String.class, "description", name);
 		region = getBundleVal(String.class, "region", region);
+		// load child props and broadcastType
+		loadBundle();
+
 		String clsStr = getBundleVal(String.class, "reset.class", null);
 		if (clsStr != null) {
 			Class<?> hiClass = Class.forName(clsStr);
@@ -79,26 +99,19 @@ public abstract class CheckBase implements CheckItemI {
 		}
 		clsStr = getBundleVal(String.class, "broadcast.class", null);
 
-		// load child props and broadcastType
-		loadBundle();
-
 		if (clsStr != null) {
 			Class<?> hiClass = Class.forName(clsStr);
 			broadcast = (BroadcastInterface) hiClass.newInstance();
 			broadcastID = getBundleVal(Integer.class, "broadcast.id", 0);
-//			if (broadcastID == 0) {
 			try {
-				int bid = broadcast.updateDevice(broadcastID, name, region, broadcastType);
+				int bid = broadcast.updateDevice(broadcastID, name, region, broadcastType, broadcastAddr);
 				if (broadcastID == 0) {
 					broadcastID = bid;
-					if (dbi != null) {
-						dbi.insertItemProperty(name, "broadcast.id", "" + broadcastID, true);
-					}
+					updateProp("broadcast.id", broadcastID);
 				}
 			} catch (UnsupportedOperationException | JSONException | IOException e) {
 				throw new InstantiationException(e.getMessage());
 			}
-//			}
 		}
 	}
 
@@ -111,6 +124,59 @@ public abstract class CheckBase implements CheckItemI {
 	}
 
 	/**
+	 * Update or adds property in DB and local Map copy
+	 * 
+	 * @param key
+	 * @param newValue
+	 * @return number of records changed
+	 */
+	protected int updateProp(String key, Object newValue) {
+		int cnt = 0;
+		if (dbi != null && newValue != null) {
+			cnt = dbi.updateItemProperty(name, key, newValue.toString(), true);
+			props.put(key, newValue.toString());
+		}
+		return cnt;
+	}
+
+	/**
+	 * Convert string value to a class of type asClass
+	 * 
+	 * @param asClass
+	 * @param stringVal a String of the word null is treated the same as null
+	 * @return
+	 */
+	@SuppressWarnings("unchecked")
+	private <T> T stringToCls(Class<T> asClass, String stringVal) {
+
+		if (stringVal != null) {
+			if (Integer.class.isAssignableFrom(asClass))
+				return (T) new Integer(stringVal);
+
+			if (Long.class.isAssignableFrom(asClass))
+				return (T) new Long(stringVal);
+
+			if (Boolean.class.isAssignableFrom(asClass))
+				return (T) new Boolean(stringVal);
+
+			if (String.class.isAssignableFrom(asClass))
+				return (T) stringVal;
+
+			if (ArrayList.class.isAssignableFrom(asClass)) {
+				String tmp = stringVal;
+				ArrayList<String> rtn = new ArrayList<String>();
+				if (tmp != null) {
+					StringTokenizer st = new StringTokenizer(tmp, ",");
+					rtn.add(st.nextToken().trim());
+				}
+				return (T) rtn;
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * Get value from bundle or DB. Supported types are Integer, Long, Boolean or
 	 * ArrayList<String> Note props files will used if available. If not the the DB
 	 * versio will be.
@@ -120,65 +186,35 @@ public abstract class CheckBase implements CheckItemI {
 	 * @param defaultValue to return if not found
 	 * @return property requested for the item
 	 */
-	@SuppressWarnings("unchecked")
 	protected <T> T getBundleVal(Class<T> asClass, String key, T defaultValue) {
+		T rtn = null;
 		if (bundle != null && bundle.containsKey(key)) {
 			try {
-				if (Integer.class.isAssignableFrom(asClass))
-					return (T) new Integer(bundle.getString(key));
-
-				if (Long.class.isAssignableFrom(asClass))
-					return (T) new Long(bundle.getString(key));
-
-				if (Boolean.class.isAssignableFrom(asClass))
-					return (T) new Boolean(bundle.getString(key));
-
-				if (String.class.isAssignableFrom(asClass))
-					return (T) bundle.getString(key);
-
-				if (ArrayList.class.isAssignableFrom(asClass)) {
-					String tmp = bundle.getString(key);
-					ArrayList<String> rtn = new ArrayList<String>();
-					if (tmp != null) {
-						StringTokenizer st = new StringTokenizer(tmp, ",");
-						rtn.add(st.nextToken().trim());
-					}
-					return (T) rtn;
-				}
-
+				rtn = stringToCls(asClass, bundle.getString(key));
 			} catch (Exception e) {
 				log.error("Failed to parse " + key + ":" + bundle.getString(key));
 			}
 		} else if (props != null && props.containsKey(key)) {
 			try {
-				if (Integer.class.isAssignableFrom(asClass))
-					return (T) new Integer(props.get(key));
-
-				if (Long.class.isAssignableFrom(asClass))
-					return (T) new Long(props.get(key));
-
-				if (Boolean.class.isAssignableFrom(asClass))
-					return (T) new Boolean(props.get(key));
-
-				if (String.class.isAssignableFrom(asClass))
-					return (T) props.get(key);
-
-				if (ArrayList.class.isAssignableFrom(asClass)) {
-					String tmp = props.get(key);
-					ArrayList<String> rtn = new ArrayList<String>();
-					if (tmp != null) {
-						StringTokenizer st = new StringTokenizer(tmp, ",");
-						rtn.add(st.nextToken().trim());
-					}
-					return (T) rtn;
-				}
-
+				rtn = stringToCls(asClass, props.get(key));
 			} catch (Exception e) {
 				log.error("Failed to parse " + key + ":" + props.get(key));
 			}
 
 		}
+		if (rtn != null) {
+			if ("null".equals(rtn)) {
+				updateProp(key, defaultValue);
+				return (T) defaultValue;
+			} else {
+				return rtn;
+			}
+		}
+
 		log.warn("Using default value for " + key + ":" + defaultValue);
+		// if not found then add default to DB is using DB.
+		updateProp(key, defaultValue);
+
 		return (T) defaultValue;
 	}
 
@@ -391,7 +427,11 @@ public abstract class CheckBase implements CheckItemI {
 	}
 
 	public void usage() {
-		System.err.println("Usage: " + getClass().getName() + " bundleName");
+		System.err.println("Usage: " + getClass().getName() + " bundleName [+b|-b|-d|-e]");
+		System.err.println("+b = add broadcast.class (default.broadcast.class) to bundleName's properties");
+		System.err.println("-b = disable broadcast.class to bundleName's properties");
+		System.err.println("-e = disable all bundleName's properties");
+		System.err.println("+e = reenable all bundleName's properties");
 
 	}
 
@@ -407,10 +447,25 @@ public abstract class CheckBase implements CheckItemI {
 			if (dbPath != null) {
 				try {
 					dbi = new SQLiteDB(dbPath);
+					if (args.length == 2) {
+
+						Props2DB p2d = new Props2DB();
+						if ("+b".equals(args[1])) {
+							p2d.updateProp(args[0], "broadcast.class", bundle.getString("default.broadcast.class"),
+									true);
+						} else if ("-b".equals(args[1])) {
+							p2d.updateProp(args[0], "broadcast.class", bundle.getString("default.broadcast.class"),
+									false);
+						} else if ("-e".equals(args[1])) {
+							dbi.setEnabledItem(args[0], false);
+						} else if ("+e".equals(args[1])) {
+							dbi.setEnabledItem(args[0], true);
+						}
+
+					}
 				} catch (SQLException e1) {
 					log.error("Failed connectiong to DB", e1);
 				}
-
 			}
 			try {
 				loadBundle(args[0]);

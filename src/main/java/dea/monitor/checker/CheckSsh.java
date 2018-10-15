@@ -2,13 +2,12 @@ package dea.monitor.checker;
 
 import java.io.InputStream;
 
-import master.ExecuteSecureShellCommand.MyLogger;
-
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
+
+import master.ExecuteSecureShellCommand.MyLogger;
 
 /**
  * Check a URL to make sure it is readable. Needs keystore in working dir
@@ -32,9 +31,15 @@ public class CheckSsh extends CheckBase {
 	protected int respCode = 0;
 	protected boolean foundString = false;
 
+	/**
+	 * Set respCode and broadcastStatusCode To help keep codes separate
+	 * broadcastStatusCode is BC_SSH_ERROR + (float) respCode / 100
+	 * 
+	 * @param respCode
+	 */
 	public void setRespCode(int respCode) {
 		this.respCode = respCode;
-		broadcastStatusCode = (float) respCode;
+		broadcastStatusCode = BC_SSH_ERROR + (float) respCode / 100;
 	}
 
 	@Override
@@ -90,13 +95,13 @@ public class CheckSsh extends CheckBase {
 							if (c < 0)
 								break;
 							String s = new String(tmp, 0, c);
-							System.out.print("read:" + s);
+							log.debug("read:" + s);
 							sb.append(s);
 						}
 						if (channel.isClosed()) {
 							if (in.available() > 0)
 								continue;
-							System.out.println("exit-status: " + channel.getExitStatus());
+							log.debug("exit-status: " + channel.getExitStatus());
 							setRespCode(channel.getExitStatus());
 							break;
 						}
@@ -105,19 +110,18 @@ public class CheckSsh extends CheckBase {
 						} catch (Exception ee) {
 						}
 					}
-				} catch (JSchException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
 				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					setErrStr(e.getMessage());
+					broadcastStatusCode = BC_EXCEPTION;
 				} finally {
 
 					// Disconnect (close connection, clean up system resources)
-					if (channel != null)
+					if (channel != null) {
 						channel.disconnect();
-					if (session != null)
+					}
+					if (session != null) {
 						session.disconnect();
+					}
 				}
 				String s = sb.toString();
 				log.info(s);
@@ -138,6 +142,7 @@ public class CheckSsh extends CheckBase {
 				}
 			}
 		}
+		broadcastStatus();
 		setState(foundString);
 		running = false;
 		log.warn("executed command");
@@ -150,6 +155,9 @@ public class CheckSsh extends CheckBase {
 		password = getBundleVal(String.class, "password", null);
 		command = getBundleVal(String.class, "command", null);
 		checkString = getBundleVal(String.class, "checkString", checkString);
+		broadcastType = getBundleVal(String.class, "broadcastType", "ssh");
+		broadcastAddr = getBundleVal(String.class, "broadcastAddr", host);
+
 	}
 
 	/**

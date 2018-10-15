@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>site</groupId>
 	<artifactId>monitor</artifactId>
-	<version>0.2.0-SNAPSHOT</version>
+	<version>0.3.0-SNAPSHOT</version>
 	<name>site-monitor</name>
 	<description>System monitor to make sure network and automation is all working.</description>
 	<properties>
@@ -185,6 +185,8 @@
 								<delete file="B:/exp/NetMonitor.jar" />
 								<copy file="${project.build.directory}/NetMonitor.jar"
 									tofile="B:/exp/NetMonitor.jar" />
+								<copy file="${project.basedir}/itemDB.sqlite"
+									tofile="B:/exp/itemDB.sqlite" />
 							</tasks>
 						</configuration>
 					</execution>

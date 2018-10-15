@@ -146,7 +146,8 @@ public class CheckUrl extends CheckBase {
 	protected SimpleDateFormat headerDateFormatFull = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
 	protected SimpleDateFormat headerDateFormat = new SimpleDateFormat("dd MMM yyyy HH:mm:ss zzz");
 
-	protected String userAgentString = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36";
+	protected String userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36";
+
 	protected HttpContext context = new BasicHttpContext();
 
 	public CheckUrl() {
@@ -216,15 +217,30 @@ public class CheckUrl extends CheckBase {
 	 * Read the contents of the url into a String
 	 * 
 	 * @param con open connection
-	 * @return contents of page
+	 * @return contents of page without new lines
 	 */
 	protected String getUrlContentAsString(HttpURLConnection con) {
+		return getUrlContentAsString(con, false);
+	}
+
+	/**
+	 * Read the contents of the url into a String
+	 * 
+	 * @param con       open connection
+	 * @param includeNL if true includes new lines, false strips them
+	 * @return contents of page
+	 */
+	protected String getUrlContentAsString(HttpURLConnection con, boolean includeNL) {
+
 		StringBuilder sb = new StringBuilder();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream()))) {
 
 			String line = null;
 			while ((line = reader.readLine()) != null) {
 				sb.append(line);
+				if (includeNL) {
+					sb.append("\n");
+				}
 			}
 		} catch (Exception e) {
 			setErrStr("Failed reading url", e);
@@ -508,9 +524,10 @@ public class CheckUrl extends CheckBase {
 		}
 		con.setRequestMethod("GET");
 
-		// con.setRequestProperty(
-		// "User-Agent",
-		// userAgentString);
+		con.setRequestProperty("User-Agent", userAgentString);
+		con.setRequestProperty("Accept", "text/html, application/xhtml+xml, application/xml; q=0.9, */*; q=0.8");
+//		con.setRequestProperty("Accept-Encoding", "gzip, deflate");
+		con.setRequestProperty("Accept-Language", "en-US, en; q=0.5");
 
 		if (login != null) {
 			con.setRequestProperty("Authorization", getBasicAuth());
@@ -849,7 +866,7 @@ public class CheckUrl extends CheckBase {
 	}
 
 	public JSONObject getJson() throws JSONException {
-		String s = getUrl(httpsURL);
+		String s = getUrl(httpsURL, true);
 		JSONObject obj = new JSONObject(s);
 		return obj;
 	}
@@ -870,14 +887,29 @@ public class CheckUrl extends CheckBase {
 	}
 
 	/**
-	 * @deprecated use getUrl(URL url)
+	 * @deprecated use getUrl(URL url, boolean includeNL)
 	 * @return
 	 */
 	public String getUrl() {
-		return getUrl(httpsURL);
+		return getUrl(httpsURL, false);
 	}
 
+	/**
+	 * @deprecated use getUrl(URL url, boolean includeNL)
+	 * @return
+	 */
 	public String getUrl(URL url) {
+		return getUrl(url, false);
+	}
+
+	/**
+	 * Get content of URL's response as a String
+	 * 
+	 * @param url       to read from
+	 * @param includeNL if true includes new lines, false strips them
+	 * @return contents of page
+	 */
+	public String getUrl(URL url, boolean includeNL) {
 		String result = null;
 		long startTime = System.currentTimeMillis();
 		try {
@@ -891,9 +923,9 @@ public class CheckUrl extends CheckBase {
 			checkHeaders(con);
 			// if connects OK do the read just to be sure
 			if (respCode == HttpURLConnection.HTTP_OK || ignoreRespCode) {
-				result = getUrlContentAsString(con);
+				result = getUrlContentAsString(con, includeNL);
 			} else if (respCode == HttpURLConnection.HTTP_MOVED_TEMP || ignoreRespCode) {
-				result = getUrlContentAsString(con);
+				result = getUrlContentAsString(con, includeNL);
 			} else if (respCode == HttpURLConnection.HTTP_FORBIDDEN || ignoreRespCode) {
 				StringBuilder sb = new StringBuilder();
 				for (String key : conHeaders.keySet()) {
@@ -1030,7 +1062,7 @@ public class CheckUrl extends CheckBase {
 				}
 
 			} else {
-				String s = getUrl(httpsURL);
+				String s = getUrl(httpsURL, false);
 				log.info(s);
 				if (respCode == HttpURLConnection.HTTP_OK || respCode == HttpURLConnection.HTTP_FORBIDDEN) {
 					if (checkResponse(s)) {
@@ -1108,7 +1140,11 @@ public class CheckUrl extends CheckBase {
 		if (login == null) {
 			log.info("Auth info not provided");
 		}
-		broadcastType = "web";
+		broadcastType = getBundleVal(String.class, "broadcastType", "web");
+
+		if (httpsURL != null)
+			broadcastAddr = getBundleVal(String.class, "broadcastAddr", httpsURL.getHost());
+
 	}
 
 	public Map<String, List<String>> getConHeaders() {

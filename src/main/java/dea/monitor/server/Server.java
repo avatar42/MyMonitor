@@ -45,7 +45,7 @@ public class Server {
 				handlers.add(handler);
 			}
 			new Server(80, handlers);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
