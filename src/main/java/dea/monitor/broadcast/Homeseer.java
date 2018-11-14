@@ -168,6 +168,15 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 					refID = obj.getInt("ref");
 					log.info("Found remote device by name");
 				}
+			} else { // if running ChkSensors it might be in the offline group.
+				map = getstatus(null, null, "offline");
+				if (map != null) {
+					obj = map.get(deviceName);
+					if (obj != null) {
+						refID = obj.getInt("ref");
+						log.info("Found remote device by name");
+					}
+				}
 			}
 		} else {
 			Map<String, JSONObject> map = getstatus(refID, null, null);
