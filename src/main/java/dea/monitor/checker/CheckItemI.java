@@ -154,23 +154,38 @@ public interface CheckItemI extends Runnable {
 
 	// common broadcast codes
 	float BC_OFFLINE = 0f;
+	// device connected
 	float BC_CONNECTED = 1f;
+	// device not connected
 	float BC_NOT_CONNECTED = 2f;
+	// Camera has been triggered
 	float BC_TRIGGERED = 3f;
+	// Camera is recording
 	float BC_RECORDING = 4f;
+	// Camera detecting motion
 	float BC_MOTION = 5f;
+	// Camera is paused
 	float BC_PAUSED = 6f;
+	// camera is hidden
 	float BC_HIDDEN = 7f;
+	// temp area full
 	float BC_TEMPFULL = 8f;
+	// camera has no signal
 	float BC_NO_SIGNAL = 9f;
+	// camera is disabled
 	float BC_DISABLED = 10f;
-	float BC_YELLOW = 10f;
+	//when motion detection is paused or disabled
+	float BC_YELLOW = 11f;
 
+	// SSH error
 	float BC_SSH_ERROR = 20f;
 	
 	float BC_EXCEPTION = 100f;
+	
 	// 200-507 See HttpStatus
 	float BC_OK = 200f;
+	
+	// 900 - 999 MyMonitor checker error
 	float BC_LOGIN_FAILED = 901f;
 	float BC_CONTENT_MISSING = 902f;
 	float BC_CONTENT_BAD = 903f;
