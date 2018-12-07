@@ -97,14 +97,16 @@ public class Props2DB {
 	}
 
 	public static void usage() {
-		System.err.println("USAGE: Props2DB all | +-b name | +-e name | name class | name key value");
-		System.err.println("all = replace all the props in the DB");
+		System.err.println("USAGE: Props2DB [-d db/path/file] all | +-b name | +-e name | name class | name key value");
+		System.err.println("-d = use db/path/file for the path to the DB file instead of the one in checks.properties");
+		System.err.println("all = replace all the props in the DB with those refereneced in checks.properties");
 		System.err.println("With 2 arguments");
 		System.err.println("+b name = add broadcast.class (default.broadcast.class) to name's properties");
 		System.err.println("-b name = disable broadcast.class to name's properties");
 		System.err.println("-e name = disable all name's properties");
 		System.err.println("+e name = reenable all name's properties");
-		System.err.println("name full.path.to.class = add a DB entry for name to use checker class");
+		System.err.println(
+				"name full.path.to.class = add a DB entry for name to use checker class and replace all entries for name with those in name.properties");
 		System.err.println("With 3 arguments");
 		System.err.println("-r oldName newName = rename a check (monitor button name / remote object name)");
 		System.err.println("name key value = add a DB entry for name of property key with value");
@@ -112,32 +114,48 @@ public class Props2DB {
 
 	public void parse(String[] args) {
 		int cnt = 0;
+		int firstArg = 0;
 		if (args == null || args.length == 0) {
 			usage();
-		} else if (args[0].equalsIgnoreCase("all")) {
-			cnt = convert();
-		} else if (args.length == 2) {
-			if ("+b".equals(args[0])) {
-				cnt = updateProp(args[1], "broadcast.class", bundle.getString("default.broadcast.class"), true);
-			} else if ("-b".equals(args[0])) {
-				cnt = updateProp(args[1], "broadcast.class", bundle.getString("default.broadcast.class"), false);
-			} else if ("-e".equals(args[0])) {
-				cnt = dbi.setEnabledItem(args[1], false);
-			} else if ("+e".equals(args[0])) {
-				cnt = dbi.setEnabledItem(args[1], true);
-			} else {
-				cnt = addProps(args[0], args[1]);
-			}
-		} else if (args.length == 3) {
-			if ("-r".equals(args[0])) {
-				cnt = dbi.renameItem(args[1], args[2]);
-			} else {
-				cnt = updateProp(args[0], args[1], args[2], false);
-			}
 		} else {
-			usage();
+			try {
+				if (args[0].equalsIgnoreCase("-d")) {
+					dbi = new SQLiteDB(args[1]);
+					System.out.println("Uploading to:" + args[1]);
+					firstArg = 2;
+				} else {
+					System.out.println("Uploading to:" + bundle.getString("db.path"));
+				}
+				if (args[firstArg].equalsIgnoreCase("all")) {
+					cnt = convert();
+				} else if (args.length == firstArg + 2) {
+					if ("+b".equals(args[firstArg])) {
+						cnt = updateProp(args[firstArg + 1], "broadcast.class",
+								bundle.getString("default.broadcast.class"), true);
+					} else if ("-b".equals(args[firstArg])) {
+						cnt = updateProp(args[firstArg + 1], "broadcast.class",
+								bundle.getString("default.broadcast.class"), false);
+					} else if ("-e".equals(args[firstArg])) {
+						cnt = dbi.setEnabledItem(args[firstArg + 1], false);
+					} else if ("+e".equals(args[firstArg])) {
+						cnt = dbi.setEnabledItem(args[firstArg + 1], true);
+					} else {
+						cnt = addProps(args[firstArg], args[firstArg + 1]);
+					}
+				} else if (args.length == firstArg + 3) {
+					if ("-r".equals(args[firstArg])) {
+						cnt = dbi.renameItem(args[firstArg + 1], args[firstArg + 2]);
+					} else {
+						cnt = updateProp(args[firstArg], args[firstArg + 1], args[firstArg + 2], false);
+					}
+				} else {
+					usage();
+				}
+			} catch (SQLException e) {
+				System.err.println(e.getMessage());
+				usage();
+			}
 		}
-
 		System.out.println("Changed " + cnt + " records");
 	}
 
