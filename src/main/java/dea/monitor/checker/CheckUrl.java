@@ -132,7 +132,7 @@ public class CheckUrl extends CheckBase {
 	protected long timeToRun = 0;
 	protected boolean foundString = false;
 	protected boolean ignoreRespCode = false;
-	private Map<String, List<String>> conHeaders;
+	protected Map<String, List<String>> conHeaders;
 	private Header[] respHeaders;
 	protected String sessionId;
 	protected String urlMethod = HttpGet.METHOD_NAME;
@@ -340,10 +340,6 @@ public class CheckUrl extends CheckBase {
 		return (url != null && url.getProtocol().equals("https"));
 	}
 
-	private void initSSL() {
-		initSSL(httpsURL);
-	}
-
 	protected void initSSL(URL url) {
 		if (isHttps(url)) {
 			log.info("Adding SSL settings");
@@ -512,7 +508,7 @@ public class CheckUrl extends CheckBase {
 	}
 
 	protected HttpURLConnection connect(URL url) throws IOException {
-		initSSL();
+		initSSL(url);
 
 		log.info("Connecting to:" + url);
 		HttpURLConnection.setFollowRedirects(followRedirects);

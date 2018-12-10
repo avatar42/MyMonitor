@@ -174,7 +174,7 @@ public interface CheckItemI extends Runnable {
 	float BC_NO_SIGNAL = 9f;
 	// camera is disabled
 	float BC_DISABLED = 10f;
-	//when motion detection is paused or disabled
+	//when motion detection is paused or disabled (low frame rate)
 	float BC_YELLOW = 11f;
 
 	// SSH error

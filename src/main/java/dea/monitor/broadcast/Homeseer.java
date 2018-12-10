@@ -155,9 +155,9 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		if (deviceName == null) {
 			throw new IOException("deviceName is required");
 		}
-		if (region == null) {
-			throw new IOException("region is required");
-		}
+//		if (region == null) {
+//			throw new IOException("region is required");
+//		}
 
 		JSONObject obj = null;
 		if (refID == 0) {
@@ -210,10 +210,11 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		if (obj != null) {
 			if (!deviceName.equals(obj.get("name")))
 				sendNameChg(refID, deviceName);
-			if (!region.equals(obj.get("location")))
+			if (region != null && !region.equals(obj.get("location")))
 				sendRegionChg(refID, region);
-			if (!type.equals(obj.get("device_type_string")))
-				sendTypeChg(refID, "MyMonitor-" + type);
+			String device_type_string = "MyMonitor-" + type;
+			if (!device_type_string.equals(obj.get("device_type_string")))
+				sendTypeChg(refID, device_type_string);
 
 			// unfortunately there does not seem to be a way to read this from here.
 			if (address != null)
