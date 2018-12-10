@@ -124,7 +124,6 @@ public class CheckOwl extends CheckUrl {
 				log.debug("type:" + type);
 				responseStr = getUrlContentAsString((HttpURLConnection) conHand);
 			} catch (IOException e1) {
-				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
 		} finally {

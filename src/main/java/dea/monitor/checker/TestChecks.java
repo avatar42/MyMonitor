@@ -9,7 +9,6 @@ import java.util.ResourceBundle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class TestChecks implements Runnable {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -54,7 +53,6 @@ public class TestChecks implements Runnable {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}

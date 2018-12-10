@@ -99,7 +99,6 @@ public class CheckBlueIris extends CheckUrl {
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
 			writer.write(s);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
@@ -267,7 +266,6 @@ public class CheckBlueIris extends CheckUrl {
 															true);
 												}
 											} catch (twitter4j.JSONException | IOException e) {
-												// TODO Auto-generated catch block
 												e.printStackTrace();
 											}
 										} else {
