@@ -43,7 +43,7 @@ public class CheckMeteobridge extends CheckUrl {
 			long lastPost = 0;
 			int endIndex = s.indexOf('\n');
 			String line = s.substring(0, endIndex);
-			if (line.contains("Success:")) {
+			if (line.contains("Success:") || line.contains("Alarm cleared!")) {
 				String dateStr = line.substring(0, 19);
 				try {
 					lastPost = (System.currentTimeMillis() - formatter.parse(dateStr).getTime()) / 1000;
