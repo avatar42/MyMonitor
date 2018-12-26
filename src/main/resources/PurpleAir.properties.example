@@ -1,0 +1,14 @@
+region = Hosting
+## id at end is parent sensor ID see https://www.wxforum.net/index.php?topic=33482.0
+httpsURL = https://www.purpleair.com/json?show=21483
+## local url of sensor
+localURL = http://10.10.1.204/json
+#seconds
+wait=1800
+## oldest last update can be in seconds 1800=30 mins
+maxOld=1800
+broadcast.class=dea.monitor.broadcast.Homeseer
+#broadcast.id=
+saveData=true
+## year and month added to end as exportPath.YY.MM.csv for the data pushed to Homeseer and detailed direct form the local sensor as exportPath.localYY.MM.csv
+exportPath=PurpleAir

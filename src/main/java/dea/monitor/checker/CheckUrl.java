@@ -862,7 +862,11 @@ public class CheckUrl extends CheckBase {
 	}
 
 	public JSONObject getJson() throws JSONException {
-		String s = getUrl(httpsURL, true);
+		return getJson(httpsURL);
+	}
+
+	public JSONObject getJson(URL url) throws JSONException {
+		String s = getUrl(url, true);
 		JSONObject obj = new JSONObject(s);
 		return obj;
 	}

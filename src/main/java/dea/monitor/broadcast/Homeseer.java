@@ -262,9 +262,8 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 	 * @param httpsURL
 	 * @return JSONObject
 	 * @throws JSONException if malformed JSON reply was received
-	 * @throws IOException   if no JSON reply was received
 	 */
-	private JSONObject getJson(URL httpsURL) throws JSONException, IOException {
+	public JSONObject getJson(URL httpsURL) throws JSONException {
 		String s = getUrl(httpsURL, false);
 		log.info(s);
 		// Calls return JSON, "error" or some other error message
@@ -276,7 +275,7 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 			JSONObject obj = new JSONObject(s);
 			return obj;
 		} else {
-			throw new IOException("Received:" + s);
+			throw new JSONException("Received:" + s);
 		}
 	}
 
