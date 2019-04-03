@@ -21,29 +21,30 @@ public class Props2DB {
 
 	private ResourceBundle bundle;
 	private DBInterface dbi;
+	private String defaultBroadcastClass;
 
 	public Props2DB() throws SQLException {
-		bundle = ResourceBundle.getBundle("checks");
-		String dbPath = bundle.getString("db.path");
-		dbi = new SQLiteDB(dbPath);
+		try {
+			bundle = ResourceBundle.getBundle("checks");
+			String dbPath = bundle.getString("db.path");
+			if (dbPath != null)
+				dbi = new SQLiteDB(dbPath);
+			defaultBroadcastClass = bundle.getString("default.broadcast.class");
+		} catch (Exception e) {
+			log.warn("No db.path in checks.properties file. Using propfiles instead");
+		}
 	}
 
 	/**
 	 * Replace all properties for each check listed in the checks.properties file.
 	 */
-	public int convert() {
+	public int convertAll() {
 		int cnt = 0;
 		for (String key : bundle.keySet()) {
 			if (key.startsWith("check.")) {
 				String className = bundle.getString(key);
 				String itemName = key.substring(6);
-				cnt += dbi.clearItem(itemName);
-				ResourceBundle itemBundle = ResourceBundle.getBundle(itemName);
-				log.info(itemName + ":class:" + className);
-				cnt += dbi.insertItemProperty(itemName, "class", className, true);
-				for (String itemkey : itemBundle.keySet()) {
-					cnt += dbi.insertItemProperty(itemName, itemkey, itemBundle.getString(itemkey), true);
-				}
+				cnt += addAllPropsToDB(itemName, className);
 			}
 		}
 		return cnt;
@@ -56,9 +57,9 @@ public class Props2DB {
 	 * 
 	 * @param itemName
 	 */
-	public int addProps(String itemName) {
+	public int addAllPropsToDB(String itemName) {
 		String className = bundle.getString("check." + itemName);
-		return addProps(itemName, className);
+		return addAllPropsToDB(itemName, className);
 	}
 
 	/**
@@ -68,15 +69,22 @@ public class Props2DB {
 	 * @param itemName
 	 * @param className to use for the "class" property
 	 */
-	public int addProps(String itemName, String className) {
-		int cnt = dbi.clearItem(itemName);
-		ResourceBundle itemBundle = ResourceBundle.getBundle(itemName);
-		log.info(itemName + ":class:" + className);
-		cnt += dbi.insertItemProperty(itemName, "class", className, true);
-		for (String itemkey : itemBundle.keySet()) {
-			cnt += dbi.insertItemProperty(itemName, itemkey, itemBundle.getString(itemkey), true);
+	public int addAllPropsToDB(String itemName, String className) {
+		int cnt = 0;
+		try {
+			ResourceBundle itemBundle = ResourceBundle.getBundle(itemName);
+			if (itemBundle != null && itemBundle.getString("region") != null) {
+				cnt = dbi.clearItem(itemName);
+				log.info(itemName + ":class:" + className);
+				cnt += dbi.insertItemProperty(itemName, "class", className, true);
+				for (String itemkey : itemBundle.keySet()) {
+					cnt += dbi.insertItemProperty(itemName, itemkey, itemBundle.getString(itemkey), true);
+				}
+				cnt += updateProp(itemName, "broadcast.class", getDefaultBroadcastClass(), true);
+			}
+		} catch (Exception e) {
+			// Failed to get props, skipping DB load form props
 		}
-
 		return cnt;
 	}
 
@@ -90,73 +98,119 @@ public class Props2DB {
 	 * @param enabled
 	 */
 	public int updateProp(String itemName, String keyName, String value, boolean enabled) {
-		int cnt = dbi.updateItemProperty(itemName, keyName, value, enabled);
-		if (cnt == 0)
-			cnt = dbi.insertItemProperty(itemName, keyName, value, true);
+
+		int cnt = 0;
+		if (value != null) {
+			cnt = dbi.updateItemProperty(itemName, keyName, value, enabled);
+			if (cnt == 0)
+				cnt = dbi.insertItemProperty(itemName, keyName, value, true);
+		}
 		return cnt;
 	}
 
-	public static void usage() {
-		System.err.println("USAGE: Props2DB [-d db/path/file] all | +-b name | +-e name | name class | name key value");
+	public static void usage(String className) {
+		if (className == null)
+			className = "dea.monitor.tools.Props2DB";
+
+		System.err.println(
+				"USAGE: " + className + " [-d db/path/file] all | +-b name | +-e name | name class | name key value");
 		System.err.println("-d = use db/path/file for the path to the DB file instead of the one in checks.properties");
 		System.err.println("all = replace all the props in the DB with those refereneced in checks.properties");
-		System.err.println("With 2 arguments");
+		System.err.println("name = overwrite name's properties in the DB with those from the properties file");
+		System.err.println("With 2 arguments (other than -d dbPath)");
 		System.err.println("+b name = add broadcast.class (default.broadcast.class) to name's properties");
 		System.err.println("-b name = disable broadcast.class to name's properties");
 		System.err.println("-e name = disable all name's properties");
 		System.err.println("+e name = reenable all name's properties");
 		System.err.println(
-				"name full.path.to.class = add a DB entry for name to use checker class and replace all entries for name with those in name.properties");
-		System.err.println("With 3 arguments");
+				"name full.qualified.className = add a DB entry for name to use checker class and replace all entries for name with those in name.properties");
+		System.err.println("With 3 arguments (other than -d dbPath)");
 		System.err.println("-r oldName newName = rename a check (monitor button name / remote object name)");
 		System.err.println("name key value = add a DB entry for name of property key with value");
 	}
 
-	public void parse(String[] args) {
+	public String parse(String className, String[] args) {
 		int cnt = 0;
 		int firstArg = 0;
+		String bundleName = null;
 		if (args == null || args.length == 0) {
-			usage();
+			usage(className);
 		} else {
 			try {
 				if (args[0].equalsIgnoreCase("-d")) {
+					// switch to using the DB passed on command line
 					dbi = new SQLiteDB(args[1]);
-					System.out.println("Uploading to:" + args[1]);
+					System.out.println("Using DB:" + args[1]);
 					firstArg = 2;
 				} else {
-					System.out.println("Uploading to:" + bundle.getString("db.path"));
+					System.out.println("Using DB:" + bundle.getString("db.path"));
 				}
+
 				if (args[firstArg].equalsIgnoreCase("all")) {
-					cnt = convert();
-				} else if (args.length == firstArg + 2) {
-					if ("+b".equals(args[firstArg])) {
-						cnt = updateProp(args[firstArg + 1], "broadcast.class",
-								bundle.getString("default.broadcast.class"), true);
-					} else if ("-b".equals(args[firstArg])) {
-						cnt = updateProp(args[firstArg + 1], "broadcast.class",
-								bundle.getString("default.broadcast.class"), false);
-					} else if ("-e".equals(args[firstArg])) {
-						cnt = dbi.setEnabledItem(args[firstArg + 1], false);
-					} else if ("+e".equals(args[firstArg])) {
-						cnt = dbi.setEnabledItem(args[firstArg + 1], true);
-					} else {
-						cnt = addProps(args[firstArg], args[firstArg + 1]);
+					cnt = convertAll();
+				} else if (args.length == firstArg + 1) {
+					String chkClassName = className;
+					bundleName = args[firstArg];
+					if (chkClassName == null) {
+						try {
+							chkClassName = bundle.getString("check." + bundleName);
+						} catch (Exception e) {
+							// props file not found. Try DB
+						}
 					}
+					if (chkClassName == null && dbi != null)
+						chkClassName = dbi.getCheck(bundleName);
+
+					if (chkClassName != null) {
+						cnt = addAllPropsToDB(bundleName, chkClassName);
+					} else {
+						System.err.println("Could not find checker class in props file or DB");
+						usage(className);
+					}
+
+				} else if (args.length == firstArg + 2) {
+					bundleName = args[firstArg + 1];
+					if ("+b".equals(args[firstArg])) {
+						cnt = updateProp(bundleName, "broadcast.class", getDefaultBroadcastClass(), true);
+					} else if ("-b".equals(args[firstArg])) {
+						cnt = updateProp(bundleName, "broadcast.class", getDefaultBroadcastClass(), false);
+					} else if ("-e".equals(args[firstArg])) {
+						cnt = dbi.setEnabledItem(bundleName, false);
+					} else if ("+e".equals(args[firstArg])) {
+						cnt = dbi.setEnabledItem(bundleName, true);
+					}
+					bundleName = args[firstArg];
+					cnt = addAllPropsToDB(bundleName, args[firstArg + 1]);
+
 				} else if (args.length == firstArg + 3) {
 					if ("-r".equals(args[firstArg])) {
 						cnt = dbi.renameItem(args[firstArg + 1], args[firstArg + 2]);
 					} else {
-						cnt = updateProp(args[firstArg], args[firstArg + 1], args[firstArg + 2], false);
+						bundleName = args[firstArg];
+						cnt = updateProp(bundleName, args[firstArg + 1], args[firstArg + 2], false);
 					}
 				} else {
-					usage();
+					usage(className);
 				}
 			} catch (SQLException e) {
 				System.err.println(e.getMessage());
-				usage();
+				usage(className);
 			}
 		}
 		System.out.println("Changed " + cnt + " records");
+		return bundleName;
+	}
+
+	public ResourceBundle getBundle() {
+		return bundle;
+	}
+
+	public DBInterface getDbi() {
+		return dbi;
+	}
+
+	public String getDefaultBroadcastClass() {
+		return defaultBroadcastClass;
 	}
 
 	/**
@@ -169,7 +223,7 @@ public class Props2DB {
 		Props2DB item;
 		try {
 			item = new Props2DB();
-			item.parse(args);
+			item.parse(null, args);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
