@@ -235,6 +235,24 @@ public class SQLiteDB implements DBInterface {
 		return rtn;
 	}
 
+	public String getCheck(String bundleName) {
+		String rtn = null;
+		String sql = "SELECT " + COL_VAL + " FROM " + TABLE_ID + " WHERE " + COL_KEY + "='class'" + " AND " + COL_NAME
+				+ "='" + bundleName + "'";
+		log.info("Getting check:");
+		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+			ResultSet rs = stmt.executeQuery();
+			// loop through the result set
+			while (rs.next()) {
+				rtn = rs.getString(COL_VAL);
+			}
+		} catch (SQLException e) {
+			log.error("Failed getting check:", e);
+		}
+
+		return rtn;
+	}
+
 	public Map<String, String> getChecks(boolean includeDisabled) {
 		Map<String, String> rtn = new HashMap<String, String>();
 		String sql = "SELECT " + COL_NAME + "," + COL_VAL + " FROM " + TABLE_ID + " WHERE " + COL_KEY + "='class'";

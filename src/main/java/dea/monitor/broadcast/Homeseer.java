@@ -20,7 +20,13 @@ import twitter4j.JSONException;
 import twitter4j.JSONObject;
 
 /**
- * Methods for talking to Homeseer
+ * Methods for talking to Homeseer See
+ * https://homeseer.com/support/homeseer/HS3/A2ZLink/default.htm
+ * 
+ * May want to convert this or make a second version using this REST API to be
+ * able to get devices by name instead of searching for the name in a list of
+ * location located objects.
+ * https://forums.homeseer.com/forum/developer-support/scripts-plug-ins-development-and-libraries/script-plug-in-library/77690-c-net-asp-net-hs3-z-wave-xml-http-restful-api
  * 
  * @author dea
  * 
@@ -28,9 +34,15 @@ import twitter4j.JSONObject;
 public class Homeseer extends CheckUrl implements BroadcastInterface {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
+	// aka Room
 	private String location1;
+	// aka Category or type
 	private String location2;
+	// default name for new objects
+	private String defaultObjName = "MyMonitorNew";
+	// group object creation events are in
 	private String eventGroup;
+	// base name of events to call to create new objects
 	private String createEvent;
 
 	public Homeseer() {
@@ -97,9 +109,17 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		}
 	}
 
-	public void sendRegionChg(Integer refID, String name) throws IOException, UnsupportedOperationException {
+	public void sendLocationChg(Integer refID, String name) throws IOException, UnsupportedOperationException {
 		try {
 			setdeviceproperty(refID, "Location", name);
+		} catch (MalformedURLException | JSONException e) {
+			throw new IOException(e);
+		}
+	}
+
+	public void sendLocation2Chg(Integer refID, String name) throws IOException, UnsupportedOperationException {
+		try {
+			setdeviceproperty(refID, "Location2", name);
 		} catch (MalformedURLException | JSONException e) {
 			throw new IOException(e);
 		}
@@ -150,7 +170,104 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		return id;
 	}
 
-	public Integer updateDevice(Integer refID, String deviceName, String region, String type, String address)
+	/**
+	 * return Object of exists with passed attributes.
+	 * 
+	 * @param deviceName
+	 * @param location1
+	 * @param location2
+	 * @return
+	 */
+	private JSONObject getObjByNameAndLocation(String deviceName, String location1, String location2) {
+		JSONObject obj = null;
+		Map<String, JSONObject> map = null;
+		try {
+			map = getstatus(null, location1, location2);
+		} catch (JSONException | IOException e) {
+			log.error("in getstatus(null, " + location1 + ", " + location2 + ");", e);
+		}
+		if (map != null) {
+			obj = map.get(deviceName);
+			if (obj != null) {
+				log.info("Found remote device by name:" + deviceName + ", " + location1 + ", " + location2);
+			}
+		}
+
+		return obj;
+	}
+
+	/**
+	 * Tries various combos of location1 and location2 values in order of likelihood
+	 * to make serious attempt to locate device before giving up. In order checks
+	 * for device name in list found with location1,location2 pairs of:
+	 * altLocation1, region; altLocation1, type; location1, region; location1, type;
+	 * null, location2; location1, null; null, "offline"
+	 * 
+	 * @param deviceName
+	 * @param altLocation1 if not null checks there first before trying default
+	 *                     location1
+	 * @param region       if not null checks there first before trying type for
+	 *                     location2
+	 * @param type         if not null checks there second before trying default
+	 *                     location2
+	 * @return JSONObject if found. null if not
+	 */
+	private JSONObject findObjWithOutID(String deviceName, String altLocation1, String region, String type) {
+		JSONObject obj = null;
+		if (altLocation1 != null) {
+			if (region != null)
+				obj = getObjByNameAndLocation(deviceName, altLocation1, region);
+			if (obj == null && type != null) {
+				obj = getObjByNameAndLocation(deviceName, altLocation1, type);
+			}
+		}
+		if (obj == null) {
+			if (region != null)
+				obj = getObjByNameAndLocation(deviceName, location1, region);
+			if (obj == null && type != null) {
+				obj = getObjByNameAndLocation(deviceName, location1, type);
+			}
+		}
+		if (obj == null) {
+			obj = getObjByNameAndLocation(deviceName, null, location2);
+		}
+
+		if (obj == null) {
+			obj = getObjByNameAndLocation(deviceName, location1, null);
+		}
+		// if running ChkSensors it might be in the offline group.
+		if (obj == null) {
+			obj = getObjByNameAndLocation(deviceName, null, "offline");
+		}
+
+		return obj;
+	}
+
+	private JSONObject createObj(String type) throws UnsupportedOperationException, IOException {
+		JSONObject obj = null;
+
+		// call script to create a new object of a type
+		// Mine create with name=defaultObjName location1="MyMonitor"
+		// location2=type
+		runevent(eventGroup, createEvent + type);
+		// give it a sec before trying to grab new device info or you might not see
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			// ignored
+		}
+		// get new device
+		obj = getObjByNameAndLocation(defaultObjName, location1, type);
+
+		return obj;
+	}
+
+	/**
+	 * Find matching object, creating it is need be and then update it.
+	 * region = location1/room
+	 * location2 = category
+	 */
+	public Integer updateDevice(Integer refID, String deviceName, String location1, String type, String address, String location2)
 			throws JSONException, IOException {
 		if (deviceName == null) {
 			throw new IOException("deviceName is required");
@@ -161,29 +278,15 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 
 		JSONObject obj = null;
 		if (refID == 0) {
-			Map<String, JSONObject> map = getstatus(null, null, location2);
-			if (map != null) {
-				obj = map.get(deviceName);
-				if (obj != null) {
-					refID = obj.getInt("ref");
-					log.info("Found remote device by name");
-				}
-			} else { // if running ChkSensors it might be in the offline group.
-				map = getstatus(null, null, "offline");
-				if (map != null) {
-					obj = map.get(deviceName);
-					if (obj != null) {
-						refID = obj.getInt("ref");
-						log.info("Found remote device by name");
-					}
-				}
+			obj = findObjWithOutID(deviceName, location1, location2, type);
+			if (obj != null) {
+				refID = obj.getInt("ref");
 			}
 		} else {
 			Map<String, JSONObject> map = getstatus(refID, null, null);
 			if (map != null && !map.isEmpty()) {
 				obj = map.values().iterator().next();
 				if (obj != null) {
-					refID = obj.getInt("ref");
 					log.info("Found remote device by refID");
 				}
 			}
@@ -191,27 +294,22 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 
 		// could not find by name or refID so add one.
 		if (obj == null) {
-			// create a new object
-			runevent(eventGroup, createEvent + type);
-			// get new device
-			Map<String, JSONObject> map = getstatus(null, null, location2);
-			if (map != null) {
-				obj = map.get("MyMonitorNew");
-				if (obj != null) {
-					refID = obj.getInt("ref");
-				} else {
-					throw new IOException("Unable to create new device");
-				}
+			obj = createObj(type);
+			if (obj != null) {
+				refID = obj.getInt("ref");
+			} else {
+				throw new IOException("Unable to create new device");
 			}
-
 		}
 
 		// update as needed
-		if (obj != null) {
+		if (refID > 0) {
 			if (!deviceName.equals(obj.get("name")))
 				sendNameChg(refID, deviceName);
-			if (region != null && !region.equals(obj.get("location")))
-				sendRegionChg(refID, region);
+			if (location1 != null && !location1.equals(obj.get("location")))
+				sendLocationChg(refID, location1);
+			if (location2 != null && !location2.equals(obj.get("location2")))
+				sendLocation2Chg(refID, location2);
 			String device_type_string = "MyMonitor-" + type;
 			if (!device_type_string.equals(obj.get("device_type_string")))
 				sendTypeChg(refID, device_type_string);
@@ -220,6 +318,8 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 			if (address != null)
 				sendAddressChg(refID, address);
 			log.info("Remote device updated");
+		} else {
+			throw new IOException("Unable to update device");
 		}
 
 		return refID;
@@ -237,6 +337,7 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		location2 = getBundleVal(String.class, "hs.location2", location2);
 		eventGroup = getBundleVal(String.class, "hs.event.group", eventGroup);
 		createEvent = getBundleVal(String.class, "hs.event.create", createEvent);
+		defaultObjName = getBundleVal(String.class, "hs.default.object.name", defaultObjName);
 
 		timeout = getBundleVal(Integer.class, "timeout", timeout);
 	}
@@ -286,13 +387,16 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 	 * 
 	 * /JSON?request=getstatus&ref=##&location1=LOC1&location2=LOC2
 	 * 
-	 * @param ref=## (only return the device that matches the specific reference #,
-	 *        this may be a list of reference #'s like 3467,2342,869, omit or set to
-	 *        "all" to return all devices)
+	 * @param ref=##         (only return the device that matches the specific
+	 *                       reference #, this may be a list of reference #'s like
+	 *                       3467,2342,869, omit or set to "all" to return all
+	 *                       devices)
 	 * @param location1=loc1 (only return the devices that are in the specific
-	 *        location1, omit or set to "all" for all devices at this location)
+	 *                       location1, omit or set to "all" for all devices at this
+	 *                       location)
 	 * @param location2=loc2 (only return the devices that are in the specific
-	 *        location2, omit or set to "all" for all devices at this location)
+	 *                       location2, omit or set to "all" for all devices at this
+	 *                       location)
 	 * 
 	 * @return Map of JSONObjects containing device data keyed by name
 	 * 
@@ -332,7 +436,7 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 	 * /JSON?request=getcontrol&ref=##
 	 * 
 	 * @param ref=### (where ### is the device reference #, or "all" to return
-	 *        control information for all devices)
+	 *                control information for all devices)
 	 * 
 	 */
 	public void getcontrol(Integer ref) throws IOException, UnsupportedOperationException {
@@ -430,8 +534,12 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 		sb.append("&name=").append(URLEncoder.encode(name, "Cp1252"));
 		try {
 			JSONObject obj = getJson(new URL(sb.toString()));
-
-			log.debug(obj.toString());
+			// On success you just get { "Response":"ok" }
+			String resp = obj.toString();
+			log.debug(resp);
+			if (!resp.contains("ok")) {
+				throw new IOException(resp);
+			}
 		} catch (MalformedURLException | JSONException e) {
 			throw new IOException(e);
 		}
@@ -522,7 +630,7 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 			System.out.println("\n getDevices:" + item.getDevices());
 			System.out.println("\n getDevicesByRegion:" + item.getDevicesByRegion("MyMonitor"));
 			System.out.println("\n getRegions:" + item.getRegions());
-			System.out.println("\n update Obj:" + item.updateDevice(0, "dea42", "Hosting", "web", null));
+			System.out.println("\n update Obj:" + item.updateDevice(0, "dea42", "Hosting", "web", null, null));
 //			Homeseer hs = new Homeseer();
 //			hs.getevents();
 		} catch (Exception e) {

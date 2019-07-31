@@ -55,17 +55,18 @@ public interface DBInterface {
 
 	/**
 	 * Rename checker set
+	 * 
 	 * @param oldName
 	 * @param newName
 	 * @return number of records changed
 	 */
 	int renameItem(String oldName, String newName);
-	
+
 	/**
 	 * Get all the properties for an item
 	 * 
 	 * @param name
-	 * @return Map with props or empty Map is not found 
+	 * @return Map with props or empty Map is not found
 	 */
 	Map<String, String> getItemProperties(String name);
 
@@ -77,6 +78,14 @@ public interface DBInterface {
 	 * @return
 	 */
 	Map<String, String> getChecks(boolean includeDisabled);
+
+	/**
+	 * Get the check class name for the bundleName
+	 * 
+	 * @param bundleName
+	 * @return fully qualified class name
+	 */
+	String getCheck(String bundleName);
 
 	/**
 	 * Mark a check active / inactive

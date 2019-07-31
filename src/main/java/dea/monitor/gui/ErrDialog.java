@@ -37,11 +37,9 @@ class ErrDialog extends JDialog {
 	private static final long serialVersionUID = 1L;
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
-	private static final String[] possibleValues = { "Leave it", "Retry Now",
-			"Mark Read" };
+	private static final String[] possibleValues = { "Leave it", "Retry Now", "Mark Read", "Reload Properties" };
 
-	private static final SimpleDateFormat fmt = new SimpleDateFormat(
-			"dd-MMM-yyyy @ HH:mm:ss");
+	private static final SimpleDateFormat fmt = new SimpleDateFormat("dd-MMM-yyyy @ HH:mm:ss");
 	public static final String TYPE_HTML = "text/html";
 	public static final String UNKNOWN = "Unknown";
 
@@ -52,8 +50,7 @@ class ErrDialog extends JDialog {
 
 	ErrDialog(Frame frame, CheckButton cb) {
 		super(frame, cb.getName(), false); // not modal
-		log.info("max size:" + frame.getMaximumSize().getHeight() + " x "
-				+ frame.getMaximumSize().getWidth());
+		log.info("max size:" + frame.getMaximumSize().getHeight() + " x " + frame.getMaximumSize().getWidth());
 		setMaximumSize(frame.getMaximumSize());
 		setPreferredSize(frame.getSize());
 		this.cb = cb;
@@ -98,16 +95,12 @@ class ErrDialog extends JDialog {
 	public void update() {
 		if (cb.getLastErr() == null) {
 			if (cb.getItem().getDetails() == null) {
-				errMsg.setText("Last run: "
-						+ dateToString(cb.getItem().getLastOK()));
+				errMsg.setText("Last run: " + dateToString(cb.getItem().getLastOK()));
 				setDetails(TYPE_HTML, null);
 			} else {
-				errMsg.setText("Last run: "
-						+ dateToString(cb.getItem().getLastOK())
-						+ " Next run: "
+				errMsg.setText("Last run: " + dateToString(cb.getItem().getLastOK()) + " Next run: "
 						+ dateToString(cb.getItem().getNextRun()));
-				if (cb.getItem().getContentType().toLowerCase()
-						.contains("text")) {
+				if (cb.getItem().getContentType().toLowerCase().contains("text")) {
 					setDetails(TYPE_HTML, cb.getItem().getDetails());
 					// clear old data
 					// cb.getItem().setDetails(null);
@@ -118,8 +111,7 @@ class ErrDialog extends JDialog {
 					Style style = doc.addStyle("StyleName", null);
 					try {
 
-						StyleConstants.setIcon(style, new ImageIcon(cb
-								.getItem().getSavedImg()));
+						StyleConstants.setIcon(style, new ImageIcon(cb.getItem().getSavedImg()));
 						doc.remove(0, doc.getLength());
 						doc.insertString(doc.getLength(), "saved image", style);
 					} catch (Exception e) {
@@ -129,11 +121,9 @@ class ErrDialog extends JDialog {
 
 			}
 		} else {
-			errMsg.setText(cb.getLastErr() + " Next Retry:"
-					+ dateToString(cb.getItem().getNextRun()));
+			errMsg.setText(cb.getLastErr() + " Next Retry:" + dateToString(cb.getItem().getNextRun()));
 			if (cb.getItem().getDetails() != null) {
-				setDetails(cb.getItem().getContentType(), cb.getItem()
-						.getDetails());
+				setDetails(cb.getItem().getContentType(), cb.getItem().getDetails());
 			} else {
 				setDetails(TYPE_HTML, "No Details");
 			}
@@ -202,6 +192,20 @@ class ErrDialog extends JDialog {
 				cb.getStatusLog()));
 		buttonPanel.add(b);
 
+		b = new JButton(possibleValues[3]); // reload props from DB
+		l = new MouseAdapter() {
+			public void mousePressed(MouseEvent e) {
+				if (e == null || !e.isMetaDown()) {
+					clearAndHide();
+				}
+			}
+
+		};
+		b.addMouseListener(l);
+		b.addKeyListener(ComponentHelper.getEnterClickListener(l,
+				cb.getStatusLog()));
+		buttonPanel.add(b);
+
 		pane.add(buttonPanel, BorderLayout.SOUTH);
 
 		setSize(200, 200);
@@ -245,4 +249,11 @@ class ErrDialog extends JDialog {
 		setVisible(false);
 	}
 
+	public void reload() {
+		try {
+			cb.getItem().loadBundle(cb.getItem().getName());
+		} catch (Exception e) {
+			cb.getItem().setDetails(e.getMessage());
+		}
+	}
 }

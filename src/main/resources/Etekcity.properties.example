@@ -1,5 +1,5 @@
-## Check Blue Iris 4 web server is up
-region = Etekcity
+## Check state of Etekcity plugs via cloud service
+region = Power
 description = Etekcity plugs
 ##username for Vesync (etekcity)
 login=email@domain.tld

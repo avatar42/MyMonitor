@@ -184,6 +184,7 @@ public class CheckEtekcity extends CheckUrl {
 						setDetails(data.toString());
 						setState(null);
 						Iterator<?> it = data.iterator();
+						String devType = "plug";
 						while (it.hasNext()) {
 							JSONObject jo = (JSONObject) it.next();
 							// cid is GUID of device so unique
@@ -196,9 +197,9 @@ public class CheckEtekcity extends CheckUrl {
 									int devBID = 0;
 									if (!devProps.containsKey("broadcast.id")) {
 										try {
-											String devType = "plug";
 											// find or create a remote device to link to
-											devBID = broadcast.updateDevice(devBID, devName, null, devType, null);
+											devBID = broadcast.updateDevice(devBID, devName, "Etekcity", devType,
+													jo.getString("cid"), getRegion());
 											if (dbi != null) {
 												dbi.updateItemProperty(subBundle, "broadcast.id", "" + devBID, true);
 												dbi.updateItemProperty(subBundle, "name", devName, true);
@@ -211,7 +212,7 @@ public class CheckEtekcity extends CheckUrl {
 									}
 									try {
 										String errMsg = "";
-										String statusMsg = "";
+										String statusMsg = jo.getString("currentFirmVersion");
 										String statusDetails = "";
 										float statusCode = -1;
 										if ("online".equals(jo.getString("connectionStatus"))) {
@@ -226,7 +227,14 @@ public class CheckEtekcity extends CheckUrl {
 											statusMsg = "Offline";
 											statusDetails = "Offline";
 										}
-
+										if (forceUpdate) {
+											try {
+												broadcast.updateDevice(devBID, devName, null, devType,
+														jo.getString("cid"), getRegion());
+											} catch (Exception e) {
+												e.printStackTrace();
+											}
+										}
 										broadcastStatus(devBID, statusCode, errMsg, statusDetails, statusMsg);
 									} catch (UnsupportedOperationException | JSONException e) {
 										// throw new InstantiationException(e.getMessage());
@@ -267,6 +275,7 @@ public class CheckEtekcity extends CheckUrl {
 		}
 		broadcastStatus();
 		running = false;
+		forceUpdate = false;
 		log.warn("read url");
 	}
 

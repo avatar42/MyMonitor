@@ -15,3 +15,4 @@ saveNPL=true
 exportPath=B:/web.root/TiVo/Roamio.npl.csv
 broadcast.class=dea.monitor.broadcast.Homeseer
 broadcast.id=5440
+broadcastType=tivo

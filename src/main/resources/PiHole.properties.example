@@ -1,0 +1,20 @@
+region = Home
+## URL of dashboard. No login needed.
+httpsURL = http://192.168.0.63/admin/
+#seconds
+wait=300
+checkString=Memory usage
+broadcast.id=5705
+broadcast.class=dea.monitor.broadcast.Homeseer
+class=dea.monitor.checker.CheckUrl
+description=Pihole
+keyFile=keystorefile.store
+keyPass=password
+timeout=15000
+urlMethod=GET
+followRedirects=false
+authType=Basic
+saveImage=false
+savePath=.
+broadcastType=web
+broadcastAddr=192.168.0.63

@@ -10,9 +10,7 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -23,7 +21,6 @@ import java.util.ResourceBundle;
 import java.util.Set;
 
 import javax.swing.AbstractAction;
-import javax.swing.BoxLayout;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -90,9 +87,24 @@ public class MonitorGUI {
 	}
 
 	public MonitorGUI() {
+	}
+
+	/**
+	 * Parse command line args
+	 * 
+	 * @param args
+	 */
+	public void parseArgs(String[] args) {
 		checks = new ArrayList<CheckItemI>();
 		bundle = ResourceBundle.getBundle("checks");
-		String dbPath = bundle.getString("db.path");
+		String dbPath = null;
+		if (args[0].equalsIgnoreCase("-d")) {
+			// switch to using the DB passed on command line
+			dbPath = args[1];
+		} else {
+			dbPath = bundle.getString("db.path");
+		}
+		System.out.println("Using DB:" + dbPath);
 		if (dbPath == null) {
 			for (String key : bundle.keySet()) {
 				if (key.startsWith("check.")) {
@@ -159,6 +171,7 @@ public class MonitorGUI {
 			}
 
 		}
+
 	}
 
 	/**
@@ -166,10 +179,10 @@ public class MonitorGUI {
 	 * from the event-dispatching thread.
 	 */
 	private void buildGUI(String[] args) {
+		parseArgs(args);
 		int minWidth = getBundleVal(Integer.class, "width.min", 800);
 		int minHeight = getBundleVal(Integer.class, "height.min", 600);
 		int logHeight = 100;
-		parseArgs(args);
 		frame = new JFrame("Server Monitor");
 		frame.setVisible(true); // so icon shows in tray
 		Dimension maxSize = new Dimension(getBundleVal(Integer.class, "width.max", 1920),
@@ -314,14 +327,6 @@ public class MonitorGUI {
 
 		statusLog.logIt(ScrollingLogPane.SHOW_INFO, "Checks running");
 
-	}
-
-	/**
-	 * Parse command line args
-	 * 
-	 * @param args
-	 */
-	public void parseArgs(String[] args) {
 	}
 
 	class ResetAction extends AbstractAction {

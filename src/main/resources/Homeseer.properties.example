@@ -6,6 +6,8 @@ hs.pass=PASSWORD
 hs.location1=
 ##Building
 hs.location2=MyMonitor
+## name given to newly created objects that update should look for.
+hs.default.object.name=MyMonitorNew
 #seconds
 wait=300
 hs.event.group=Monitor

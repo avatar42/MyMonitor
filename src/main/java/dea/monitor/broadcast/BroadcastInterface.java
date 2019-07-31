@@ -76,14 +76,24 @@ public interface BroadcastInterface {
 	void sendNameChg(Integer refID, String name) throws IOException, UnsupportedOperationException;
 
 	/**
-	 * Set region on a remote object / device.
+	 * Set location on a remote object / device.
 	 * 
-	 * @param refID  ID used to reference the device in this system.
-	 * @param region value to set it to
+	 * @param refID    ID used to reference the device in this system.
+	 * @param location value to set it to
 	 * @throws IOException                   an error was encountered sending
 	 * @throws UnsupportedOperationException if this class does not support this
 	 */
-	void sendRegionChg(Integer refID, String name) throws IOException, UnsupportedOperationException;
+	void sendLocationChg(Integer refID, String location) throws IOException, UnsupportedOperationException;
+
+	/**
+	 * Set location2 on a remote object / device.
+	 * 
+	 * @param refID    ID used to reference the device in this system.
+	 * @param location value to set it to
+	 * @throws IOException                   an error was encountered sending
+	 * @throws UnsupportedOperationException if this class does not support this
+	 */
+	void sendLocation2Chg(Integer refID, String location) throws IOException, UnsupportedOperationException;
 
 	/**
 	 * Set region on a remote object / device.
@@ -166,11 +176,12 @@ public interface BroadcastInterface {
 	 * @param refID      if 0 triggers a search by deviceName and then a create if
 	 *                   not found.
 	 * @param deviceName in remote system
-	 * @param region     to use in remote system
+	 * @param location1     to use in remote system
 	 * @param type       of device in remote system
-	 * @param address    TODO
+	 * @param address    null if set by remote system
+	 * @param location2  to use in remote system
 	 * @return id of device in remote system. Same as refID if not new object.
 	 */
-	Integer updateDevice(Integer refID, String deviceName, String region, String type, String address)
+	Integer updateDevice(Integer refID, String deviceName, String location1, String type, String address, String location2)
 			throws JSONException, IOException;
 }

@@ -16,13 +16,16 @@ import org.slf4j.LoggerFactory;
 
 import dea.monitor.broadcast.BroadcastInterface;
 import dea.monitor.db.DBInterface;
-import dea.monitor.db.SQLiteDB;
 import dea.monitor.reset.ResetI;
 import dea.monitor.tools.Props2DB;
 import twitter4j.JSONException;
 
 public abstract class CheckBase implements CheckItemI {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
+
+	// set to true when making code changes to update all current objects to latest
+	// style first loop thru
+	protected boolean forceUpdate = true;
 
 	private String name;
 	private String description;
@@ -71,10 +74,10 @@ public abstract class CheckBase implements CheckItemI {
 		} else {
 			props = dbi.getItemProperties(bundleName);
 			if (props.isEmpty()) {
-				// if using DB but not probs found then add then to the DB
+				// if using DB but no props found then add to the DB
 				try {
 					Props2DB p2b = new Props2DB();
-					p2b.addProps(bundleName, this.getClass().getName());
+					p2b.addAllPropsToDB(bundleName, this.getClass().getName());
 					props = dbi.getItemProperties(bundleName);
 				} catch (SQLException e) {
 					throw new InstantiationException(e.getMessage());
@@ -83,8 +86,6 @@ public abstract class CheckBase implements CheckItemI {
 		}
 
 		name = bundleName;
-		// uncomment to bulk set all the checkers of this type to broadcast to Homeseer
-		getBundleVal(String.class, "broadcast.class", "dea.monitor.broadcast.Homeseer");
 
 		wait = getBundleVal(Integer.class, "wait", wait);
 		description = getBundleVal(String.class, "description", name);
@@ -104,7 +105,7 @@ public abstract class CheckBase implements CheckItemI {
 			broadcast = (BroadcastInterface) hiClass.newInstance();
 			broadcastID = getBundleVal(Integer.class, "broadcast.id", 0);
 			try {
-				int bid = broadcast.updateDevice(broadcastID, name, region, broadcastType, broadcastAddr);
+				int bid = broadcast.updateDevice(broadcastID, name, region, broadcastType, broadcastAddr, null);
 				if (broadcastID == 0) {
 					broadcastID = bid;
 					updateProp("broadcast.id", broadcastID);
@@ -179,7 +180,7 @@ public abstract class CheckBase implements CheckItemI {
 	/**
 	 * Get value from bundle or DB. Supported types are Integer, Long, Boolean or
 	 * ArrayList<String> Note props files will used if available. If not the the DB
-	 * versio will be.
+	 * version will be.
 	 * 
 	 * @param asClass      Class you want back
 	 * @param key          to look for in the properties.
@@ -233,6 +234,8 @@ public abstract class CheckBase implements CheckItemI {
 		broadcastStatus(broadcastID, broadcastStatusCode, errStr, details, statusMsg);
 	}
 
+	//TODO: only send changed values?
+	//TODO: add save sent data to DB option
 	protected void broadcastStatus(int bid, float statusCode, String errMsg, String statusDetails, String statusMsg) {
 		if (broadcast != null && bid > 0) {
 			try {
@@ -441,34 +444,17 @@ public abstract class CheckBase implements CheckItemI {
 	 * @param args
 	 */
 	public void cmd(String[] args) {
+		String bundleName = null;
 		if (args.length > 0) {
-			ResourceBundle bundle = ResourceBundle.getBundle("checks");
-			String dbPath = bundle.getString("db.path");
-			if (dbPath != null) {
-				try {
-					dbi = new SQLiteDB(dbPath);
-					if (args.length == 2) {
-
-						Props2DB p2d = new Props2DB();
-						if ("+b".equals(args[1])) {
-							p2d.updateProp(args[0], "broadcast.class", bundle.getString("default.broadcast.class"),
-									true);
-						} else if ("-b".equals(args[1])) {
-							p2d.updateProp(args[0], "broadcast.class", bundle.getString("default.broadcast.class"),
-									false);
-						} else if ("-e".equals(args[1])) {
-							dbi.setEnabledItem(args[0], false);
-						} else if ("+e".equals(args[1])) {
-							dbi.setEnabledItem(args[0], true);
-						}
-
-					}
-				} catch (SQLException e1) {
-					log.error("Failed connectiong to DB", e1);
-				}
+			try {
+				Props2DB p2d = new Props2DB();
+				bundleName = p2d.parse(getClass().getCanonicalName(), args);
+				dbi = p2d.getDbi();
+			} catch (SQLException e1) {
+				log.error("Failed connectiong to DB", e1);
 			}
 			try {
-				loadBundle(args[0]);
+				loadBundle(bundleName);
 				Thread thread = background();
 
 				while (thread.isAlive()) {
