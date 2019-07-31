@@ -12,7 +12,7 @@ import twitter4j.JSONObject;
  * 
  */
 public class CheckWu extends CheckUrl {
-	/*
+	/* Example response
 	 * KTXLEAND93: { epoch: 1463711956, ageh: 0, agem: 4, ages: 42, type: "PWS", id:
 	 * "KTXLEAND93", lat: "30.57215500", lon: "-97.94791412", adm1: "Leander", adm2:
 	 * "TX", country: "US", neighborhood: "Round Mountain Oaks", dateutc:
@@ -57,6 +57,7 @@ public class CheckWu extends CheckUrl {
 				} else {
 					setState(null);
 				}
+				break;
 			} catch (JSONException e) {
 				setErrStr(e.getMessage());
 				broadcastStatusCode = BC_EXCEPTION;

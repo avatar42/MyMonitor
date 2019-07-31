@@ -260,7 +260,7 @@ public class CheckBlueIris extends CheckUrl {
 												}
 												// find or create a remote device to link to
 												camBID = broadcast.updateDevice(camBID, subBundleName, getRegion(),
-														devType, null);
+														devType, null, null);
 												if (dbi != null) {
 													dbi.insertItemProperty(subBundleName, "broadcast.id", "" + camBID,
 															true);

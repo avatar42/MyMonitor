@@ -19,7 +19,8 @@ import twitter4j.JSONObject;
  * https://forum.airnowtech.org/t/the-aqi-equation/169 Turn off intake when AVG
  * PM2.5 PM1.0 or PM10 > 10
  * 
- * Note the data saved by setting saveData to true can be downloaded in even greater detail at 
+ * Note the data saved by setting saveData to true can be downloaded in even
+ * greater detail at
  * http://www.purpleair.com/sensorlist?fbclid=IwAR2Zhsa6ncdFziQ3ggxKYdn2oG3utn5HGNFjiA0dMllUu9R3xndmMYXdirk
  * 
  * @author avatar42
@@ -41,6 +42,31 @@ public class CheckPurpleAir extends CheckUrl {
 		maxOld = getBundleVal(Integer.class, "maxOld", maxOld);
 	}
 
+	/**
+	 * get and broadcast value from local web service.
+	 * @param jo
+	 * @param jsonName
+	 * @return value as String with appended ,
+	 */
+	private String processSensorCnt(JSONObject jo, String jsonName) {
+		return processSensor(jo, jsonName, getName() + "." + jsonName, "cnt") +",";
+	}
+
+	private String processSensor(JSONObject jo, String jsonName, String subBundleName, String devType) {
+		String val = "-";
+		try {
+			val = jo.getString(jsonName);
+			float pm2 = Float.parseFloat(val);
+			processSensor(subBundleName, pm2, "cnt");
+		} catch (Exception e) {
+			// if the value is no longer in the json log a - but do not broadcast
+			// if found but unable to parse then log as string but do not broadcast
+			log.warn("got " + val + " for " + jsonName + " but was unable to send to server:" + e.getMessage());
+		}
+
+		return val;
+	}
+
 	private void processSensor(String subBundleName, float statusCode, String devType) {
 
 		if (dbi != null) {
@@ -51,7 +77,7 @@ public class CheckPurpleAir extends CheckUrl {
 				if (!devProps.containsKey("broadcast.id")) {
 					try {
 						// find or create a remote device to link to
-						devBID = broadcast.updateDevice(devBID, subBundleName, getRegion(), devType, null);
+						devBID = broadcast.updateDevice(devBID, subBundleName, getRegion(), devType, null, null);
 						if (dbi != null) {
 							dbi.insertItemProperty(subBundleName, "broadcast.id", "" + devBID, true);
 						}
@@ -66,6 +92,23 @@ public class CheckPurpleAir extends CheckUrl {
 				String statusDetails = "";
 				broadcastStatus(devBID, statusCode, errMsg, statusDetails, statusMsg);
 			}
+		}
+
+	}
+
+	/**
+	 * Deal with removed parms
+	 * 
+	 * @param json JSONObject from response
+	 * @param name of parm to grab
+	 * @return
+	 */
+	private String getParmString(JSONObject json, String name) {
+		try {
+			return json.getString(name) + ",";
+		} catch (JSONException e) {
+			log.warn("parm " + name + "missing from JSON");
+			return ",";
 		}
 
 	}
@@ -90,20 +133,11 @@ public class CheckPurpleAir extends CheckUrl {
 				String label = "A";
 				Long lastPostA = jo.getLong("LastSeen");
 
-				int rssi = (Integer) jo.getInt("RSSI");
-				processSensor(getName() + "." + label + ".RSSI", rssi, "rssi");
-
-				float pm2 = Float.parseFloat(jo.getString("PM2_5Value"));
-				processSensor(getName() + "." + label + ".PM2.5", pm2, "cnt");
-
-				float temp = Float.parseFloat(jo.getString("temp_f"));
-				processSensor(getName() + "." + label + ".temp", temp, "temp");
-
-				float humidity = Float.parseFloat(jo.getString("humidity"));
-				processSensor(getName() + "." + label + ".humidity", humidity, "humidity");
-
-				float pressure = Float.parseFloat(jo.getString("pressure"));
-				processSensor(getName() + "." + label + ".pressure", pressure, "pressure");
+				String rssi = processSensor(jo, "RSSI", getName() + "." + label + ".RSSI", "rssi");
+				String pm2 = processSensor(jo, "PM2_5Value", getName() + "." + label + ".PM2.5", "cnt");
+				String temp = processSensor(jo, "temp_f", getName() + "." + label + ".temp", "temp");
+				String humidity = processSensor(jo, "humidity", getName() + "." + label + ".humidity", "humidity");
+				String pressure = processSensor(jo, "pressure", getName() + "." + label + ".pressure", "pressure");
 
 				if (saveData) {
 					sb = sb.append(lastPostA).append(",").append(rssi).append(",").append(pm2).append(",").append(temp)
@@ -113,21 +147,11 @@ public class CheckPurpleAir extends CheckUrl {
 				jo = (JSONObject) sensors.get(1);
 				label = "B";
 				Long lastPostB = jo.getLong("LastSeen");
-
-				rssi = (Integer) jo.getInt("RSSI");
-				processSensor(getName() + "." + label + ".RSSI", rssi, "rssi");
-
-				pm2 = Float.parseFloat(jo.getString("PM2_5Value"));
-				processSensor(getName() + "." + label + ".PM2.5", pm2, "cnt");
-
-				temp = Float.parseFloat(jo.getString("temp_f"));
-				processSensor(getName() + "." + label + ".temp", temp, "temp");
-
-				humidity = Float.parseFloat(jo.getString("humidity"));
-				processSensor(getName() + "." + label + ".humidity", humidity, "humidity");
-
-				pressure = Float.parseFloat(jo.getString("pressure"));
-				processSensor(getName() + "." + label + ".pressure", pressure, "pressure");
+				rssi = processSensor(jo, "RSSI", getName() + "." + label + ".RSSI", "rssi");
+				pm2 = processSensor(jo, "PM2_5Value", getName() + "." + label + ".PM2.5", "cnt");
+				temp = processSensor(jo, "temp_f", getName() + "." + label + ".temp", "temp");
+				humidity = processSensor(jo, "humidity", getName() + "." + label + ".humidity", "humidity");
+				pressure = processSensor(jo, "pressure", getName() + "." + label + ".pressure", "pressure");
 
 				if (saveData) {
 					sb = sb.append(lastPostB).append(",").append(rssi).append(",").append(pm2).append(",").append(temp)
@@ -159,63 +183,70 @@ public class CheckPurpleAir extends CheckUrl {
 							writer.write(
 									"SensorId,DateTime,Geo,Mem,Id,Adc,lat,lon,accuracy,elevation,version,uptime,rssi,hardwareversion,hardwarediscovered,current_temp_f,current_humidity,current_dewpoint_f,pressure,pm1_0_atm_b,pm2_5_atm_b,pm10_0_atm_b,pm1_0_cf_1_b,pm2_5_cf_1_b,pm10_0_cf_1_b,p_0_3_um_b,p_0_5_um_b,p_1_0_um_b,p_2_5_um_b,p_5_0_um_b,p_10_0_um_b,pm1_0_atm,pm2_5_atm,pm10_0_atm,pm1_0_cf_1,pm2_5_cf_1,pm10_0_cf_1,p_0_3_um,p_0_5_um,p_1_0_um,p_2_5_um,p_5_0_um,p_10_0_um,responseCode,responseCode_date,key1_responseCode,key1_responseCode_date,key1_count,key2_responseCode,key2_responseCode_date,key2_count,key1_responseCode_b,key1_responseCode_date_b,key1_count_b,key2_responseCode_b,key2_responseCode_date_b,key2_count_b\n");
 						}
-						writer.write(json.getString("SensorId") + ",");
-						writer.write(json.getString("DateTime") + ",");
-						writer.write(json.getString("Geo") + ",");
-						writer.write(json.getString("Mem") + ",");
-						writer.write(json.getString("Id") + ",");
-						writer.write(json.getString("Adc") + ",");
-						writer.write(json.getString("lat") + ",");
-						writer.write(json.getString("lon") + ",");
-						writer.write(json.getString("accuracy") + ",");
-						writer.write(json.getString("elevation") + ",");
-						writer.write(json.getString("version") + ",");
-						writer.write(json.getString("uptime") + ",");
-						writer.write(json.getString("rssi") + ",");
-						writer.write(json.getString("hardwareversion") + ",");
-						writer.write(json.getString("hardwarediscovered") + ",");
-						writer.write(json.getString("current_temp_f") + ",");
-						writer.write(json.getString("current_humidity") + ",");
-						writer.write(json.getString("current_dewpoint_f") + ",");
-						writer.write(json.getString("pressure") + ",");
-						writer.write(json.getString("pm1_0_atm_b") + ",");
-						writer.write(json.getString("pm2_5_atm_b") + ",");
-						writer.write(json.getString("pm10_0_atm_b") + ",");
-						writer.write(json.getString("pm1_0_cf_1_b") + ",");
-						writer.write(json.getString("pm2_5_cf_1_b") + ",");
-						writer.write(json.getString("pm10_0_cf_1_b") + ",");
-						writer.write(json.getString("p_0_3_um_b") + ",");
-						writer.write(json.getString("p_0_5_um_b") + ",");
-						writer.write(json.getString("p_1_0_um_b") + ",");
-						writer.write(json.getString("p_2_5_um_b") + ",");
-						writer.write(json.getString("p_5_0_um_b") + ",");
-						writer.write(json.getString("p_10_0_um_b") + ",");
-						writer.write(json.getString("pm1_0_atm") + ",");
-						writer.write(json.getString("pm2_5_atm") + ",");
-						writer.write(json.getString("pm10_0_atm") + ",");
-						writer.write(json.getString("pm1_0_cf_1") + ",");
-						writer.write(json.getString("pm2_5_cf_1") + ",");
-						writer.write(json.getString("pm10_0_cf_1") + ",");
-						writer.write(json.getString("p_0_3_um") + ",");
-						writer.write(json.getString("p_0_5_um") + ",");
-						writer.write(json.getString("p_1_0_um") + ",");
-						writer.write(json.getString("p_2_5_um") + ",");
-						writer.write(json.getString("p_5_0_um") + ",");
-						writer.write(json.getString("p_10_0_um") + ",");
-						writer.write(json.getString("responseCode") + ",");
-						writer.write(json.getString("responseCode_date") + ",");
-						writer.write(json.getString("key1_responseCode") + ",");
-						writer.write(json.getString("key1_responseCode_date") + ",");
-						writer.write(json.getString("key1_count") + ",");
-						writer.write(json.getString("key2_responseCode") + ",");
-						writer.write(json.getString("key2_responseCode_date") + ",");
-						writer.write(json.getString("key2_count") + ",");
-						writer.write(json.getString("key1_responseCode_b") + ",");
-						writer.write(json.getString("key1_responseCode_date_b") + ",");
-						writer.write(json.getString("key1_count_b") + ",");
-						writer.write(json.getString("key2_responseCode_b") + ",");
-						writer.write(json.getString("key2_responseCode_date_b") + ",");
-						writer.write(json.getString("key2_count_b") + ",\n");
+						writer.write(getParmString(json, "SensorId"));
+						writer.write(getParmString(json, "DateTime"));
+						writer.write(getParmString(json, "Geo"));
+						writer.write(getParmString(json, "Mem"));
+						writer.write(getParmString(json, "Id"));
+						writer.write(getParmString(json, "Adc"));
+						writer.write(getParmString(json, "lat"));
+						writer.write(getParmString(json, "lon"));
+						// next 2 dropped in 3.00 version of sensor firmware
+						writer.write(getParmString(json,"accuracy"));
+						writer.write(getParmString(json,"elevation"));
+
+						writer.write(getParmString(json, "version"));
+						writer.write(getParmString(json, "uptime"));
+						writer.write(getParmString(json, "rssi"));
+						writer.write(getParmString(json, "hardwareversion"));
+						writer.write(getParmString(json, "hardwarediscovered"));
+						
+						// next 4 dropped before 5/20/2019
+						writer.write(getParmString(json, "current_temp_f"));
+						writer.write(getParmString(json, "current_humidity"));
+						writer.write(getParmString(json, "current_dewpoint_f"));
+						writer.write(getParmString(json, "pressure"));
+
+						// processSensorCnt also broadcasts the value
+						writer.write(processSensorCnt(json, "pm1_0_atm_b"));
+						writer.write(processSensorCnt(json, "pm2_5_atm_b"));
+						writer.write(processSensorCnt(json, "pm10_0_atm_b"));
+						writer.write(processSensorCnt(json, "pm1_0_cf_1_b"));
+						writer.write(processSensorCnt(json, "pm2_5_cf_1_b"));
+						writer.write(processSensorCnt(json, "pm10_0_cf_1_b"));
+						writer.write(processSensorCnt(json, "p_0_3_um_b"));
+						writer.write(processSensorCnt(json, "p_0_5_um_b"));
+						writer.write(processSensorCnt(json, "p_1_0_um_b"));
+						writer.write(processSensorCnt(json, "p_2_5_um_b"));
+						writer.write(processSensorCnt(json, "p_5_0_um_b"));
+						writer.write(processSensorCnt(json, "p_10_0_um_b"));
+						writer.write(processSensorCnt(json, "pm1_0_atm"));
+						writer.write(processSensorCnt(json, "pm2_5_atm"));
+						writer.write(processSensorCnt(json, "pm10_0_atm"));
+						writer.write(processSensorCnt(json, "pm1_0_cf_1"));
+						writer.write(processSensorCnt(json, "pm2_5_cf_1"));
+						writer.write(processSensorCnt(json, "pm10_0_cf_1"));
+						writer.write(processSensorCnt(json, "p_0_3_um"));
+						writer.write(processSensorCnt(json, "p_0_5_um"));
+						writer.write(processSensorCnt(json, "p_1_0_um"));
+						writer.write(processSensorCnt(json, "p_2_5_um"));
+						writer.write(processSensorCnt(json, "p_5_0_um"));
+						writer.write(processSensorCnt(json, "p_10_0_um"));
+						writer.write(getParmString(json, "responseCode"));
+						writer.write(getParmString(json, "responseCode_date"));
+						writer.write(getParmString(json, "key1_responseCode"));
+						writer.write(getParmString(json, "key1_responseCode_date"));
+						writer.write(getParmString(json, "key1_count"));
+						writer.write(getParmString(json, "key2_responseCode"));
+						writer.write(getParmString(json, "key2_responseCode_date"));
+						writer.write(getParmString(json, "key2_count"));
+						writer.write(getParmString(json, "key1_responseCode_b"));
+						writer.write(getParmString(json, "key1_responseCode_date_b"));
+						writer.write(getParmString(json, "key1_count_b"));
+						writer.write(getParmString(json, "key2_responseCode_b"));
+						writer.write(getParmString(json, "key2_responseCode_date_b"));
+						writer.write(getParmString(json, "key2_count_b"));
+						writer.write("\n");
 						writer.flush();
 					} finally {
 						if (writer != null) {
@@ -257,6 +288,12 @@ public class CheckPurpleAir extends CheckUrl {
 					}
 				}
 				setDetails(sb.toString());
+			}
+			// might be restarting so give a few seconds before trying again.
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				// keeping compiler happy.
 			}
 		}
 		broadcastStatus();
