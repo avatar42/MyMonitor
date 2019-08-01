@@ -7,7 +7,6 @@ import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.ResourceBundle;
 import java.util.Set;
 
 import org.apache.commons.io.IOExceptionWithCause;
@@ -15,6 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import dea.monitor.checker.CheckUrl;
+import dea.monitor.db.Props;
+import dea.monitor.reset.ResetI;
 import twitter4j.JSONArray;
 import twitter4j.JSONException;
 import twitter4j.JSONObject;
@@ -31,7 +32,7 @@ import twitter4j.JSONObject;
  * @author dea
  * 
  */
-public class Homeseer extends CheckUrl implements BroadcastInterface {
+public class Homeseer extends CheckUrl implements BroadcastInterface, ResetI {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	// aka Room
@@ -45,8 +46,10 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 	// base name of events to call to create new objects
 	private String createEvent;
 
-	public Homeseer() {
-		loadBundle();
+	private Props props;
+
+	public Homeseer() throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+		loadBundle("Homeseer");
 	}
 
 	/********************************************
@@ -263,12 +266,11 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 	}
 
 	/**
-	 * Find matching object, creating it is need be and then update it.
-	 * region = location1/room
-	 * location2 = category
+	 * Find matching object, creating it is need be and then update it. region =
+	 * location1/room location2 = category
 	 */
-	public Integer updateDevice(Integer refID, String deviceName, String location1, String type, String address, String location2)
-			throws JSONException, IOException {
+	public Integer updateDevice(Integer refID, String deviceName, String location1, String type, String address,
+			String location2) throws JSONException, IOException {
 		if (deviceName == null) {
 			throw new IOException("deviceName is required");
 		}
@@ -328,9 +330,10 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 	/************************** helper / bridge methods ***************************/
 	/**
 	 * load configuration from properties file
+	 * 
+	 * 
 	 */
 	public void loadBundle() {
-		bundle = ResourceBundle.getBundle("Homeseer");
 		login = getBundleVal(String.class, "hs.user", login);
 		password = getBundleVal(String.class, "hs.pass", password);
 		location1 = getBundleVal(String.class, "hs.location1", location1);
@@ -348,7 +351,7 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 	 * @return URL string
 	 */
 	private String getBaseUrl() {
-		if (bundle == null) {
+		if (props == null) {
 			loadBundle();
 		}
 		StringBuilder url = new StringBuilder(getBundleVal(String.class, "httpsURL", null));
@@ -618,21 +621,54 @@ public class Homeseer extends CheckUrl implements BroadcastInterface {
 	}
 
 	/**
+	 * @See dea.dea.monitor.reset.doReset(String)
+	 */
+	@Override
+	public void doReset(String bundleName) throws ClassNotFoundException, InstantiationException,
+			IllegalAccessException, UnsupportedOperationException, IOException {
+		// get bundle
+		Props p = new Props(bundleName, dbi, null);
+
+		// get reset device ID from props/DB
+		Integer resetObjID = p.getBundleVal(Integer.class, "resetObjID", null);
+
+		// get wait value from props/DB
+		Integer wait = p.getBundleVal(Integer.class, "wait", 1000);
+		// get on value from props/DB
+		Float onValue = p.getBundleVal(Float.class, "onValue", null);
+		// get off value from props/DB
+		Float offValue = p.getBundleVal(Float.class, "offValue", null);
+
+		// call sendVal(refID, offVal)
+		sendVal(resetObjID, offValue);
+		// sleep wait val
+		try {
+			Thread.sleep(wait);
+		} catch (InterruptedException e) {
+			// ignored
+		}
+		// call sendVal(refID, onVal)
+		sendVal(resetObjID, onValue);
+
+	}
+
+	/**
 	 * for testing
 	 * 
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		BroadcastInterface item = new Homeseer();
 		try {
-			item.speak("Testing 1 2 3 done");
-			item.sendVal(5430, 200f);
-			System.out.println("\n getDevices:" + item.getDevices());
-			System.out.println("\n getDevicesByRegion:" + item.getDevicesByRegion("MyMonitor"));
-			System.out.println("\n getRegions:" + item.getRegions());
-			System.out.println("\n update Obj:" + item.updateDevice(0, "dea42", "Hosting", "web", null, null));
+			BroadcastInterface item = new Homeseer();
+//			item.speak("Testing 1 2 3 done");
+//			item.sendVal(5430, 200f);
+//			System.out.println("\n getDevices:" + item.getDevices());
+//			System.out.println("\n getDevicesByRegion:" + item.getDevicesByRegion("MyMonitor"));
+//			System.out.println("\n getRegions:" + item.getRegions());
+//			System.out.println("\n update Obj:" + item.updateDevice(0, "dea42", "Hosting", "web", null, null));
 //			Homeseer hs = new Homeseer();
 //			hs.getevents();
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

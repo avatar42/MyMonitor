@@ -81,7 +81,6 @@ import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 
-import dea.monitor.reset.ResetI;
 import dea.monitor.tools.HttpsVerifier;
 import dea.monitor.tools.Utils;
 import twitter4j.JSONException;
@@ -668,7 +667,8 @@ public class CheckUrl extends CheckBase {
 				request.setEntity(new UrlEncodedFormEntity(nameValuePairs));
 				response = execute((HttpUriRequest) request, context);
 				log.info("login response code:" + respCode);
-				if (respCode == HttpStatus.SC_OK || respCode == HttpStatus.SC_MOVED_TEMPORARILY || respCode == HttpStatus.SC_MOVED_PERMANENTLY) {
+				if (respCode == HttpStatus.SC_OK || respCode == HttpStatus.SC_MOVED_TEMPORARILY
+						|| respCode == HttpStatus.SC_MOVED_PERMANENTLY) {
 					HttpEntity entity = response.getEntity();
 					if (entity != null) {
 						if (contentType.contains("text")) {
@@ -1080,7 +1080,8 @@ public class CheckUrl extends CheckBase {
 		if (reset != null && !foundString) {
 			try {
 				reset.doReset(getName());
-			} catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+			} catch (ClassNotFoundException | InstantiationException | IllegalAccessException
+					| UnsupportedOperationException | IOException e) {
 				setDetails("Reset failed:" + e.getMessage());
 			}
 		}

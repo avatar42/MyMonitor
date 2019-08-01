@@ -29,9 +29,27 @@ public class SQLiteDB implements DBInterface {
 	private static final String COL_ACTIVE = "active";
 
 	// SQL statement for creating a new table
-	private static final String createItemsSql = "CREATE TABLE IF NOT EXISTS " + TABLE_ID + " (" + COL_ID
+	private static final String CREATE_ITEMS_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + TABLE_ID + " (" + COL_ID
 			+ " integer PRIMARY KEY AUTOINCREMENT," + " " + COL_NAME + " text NOT NULL, " + COL_KEY + " text NOT NULL, "
 			+ COL_VAL + " text NOT NULL," + COL_ACTIVE + " integer DEFAULT 1);";
+	// SQL used by methods
+	private static final String UPDATE_ITEM_PROPERTY_SQL = "UPDATE " + TABLE_ID + " SET " + COL_VAL + "=?, "
+			+ COL_ACTIVE + "=? WHERE " + COL_NAME + "=? AND " + COL_KEY + "=?";
+	private static final String CLEAR_ITEM_SQL = "DELETE FROM " + TABLE_ID + " where " + COL_NAME + "=?";
+	private static final String INSERT_ITEM_PROPERTY_SQL = "INSERT INTO " + TABLE_ID + "(" + COL_NAME + ", " + COL_KEY
+			+ ", " + COL_VAL + ", " + COL_ACTIVE + ") VALUES(?, ?, ?, ?)";
+	private static final String SET_ITEM_ENABLED_SQL = "UPDATE " + TABLE_ID + " SET " + COL_ACTIVE + "=? WHERE "
+			+ COL_NAME + "=?";
+	private static final String RENAME_ITEM_SQL = "UPDATE " + TABLE_ID + " SET " + COL_NAME + "=? WHERE " + COL_NAME
+			+ "=?";
+	private static final String GET_ITEM_PROPERTIES_SQL = "SELECT " + COL_KEY + "," + COL_VAL + " FROM " + TABLE_ID
+			+ " WHERE " + COL_NAME + "=?";
+	private static final String GET_CHECK_SQL = "SELECT " + COL_VAL + " FROM " + TABLE_ID + " WHERE " + COL_KEY
+			+ "='class'" + " AND " + COL_NAME + "=?";
+	private static final String GET_CHECKS_SQL = "SELECT " + COL_NAME + "," + COL_VAL + " FROM " + TABLE_ID + " WHERE "
+			+ COL_KEY + "='class'";
+	private static final String GET_ACTIVE_CHECKS_SQL = "SELECT " + COL_NAME + "," + COL_VAL + " FROM " + TABLE_ID
+			+ " WHERE " + COL_KEY + "='class'" + " AND " + COL_ACTIVE + "=1";
 
 	private Connection conn;
 
@@ -66,7 +84,7 @@ public class SQLiteDB implements DBInterface {
 					log.warn("A new database has been created.");
 				try (Statement stmt = conn.createStatement()) {
 					// create a new table
-					stmt.executeUpdate(createItemsSql);
+					stmt.executeUpdate(CREATE_ITEMS_TABLE_SQL);
 				} catch (SQLException e) {
 					log.error("Failed getting connection:", e);
 				}
@@ -84,9 +102,8 @@ public class SQLiteDB implements DBInterface {
 
 	public int clearItem(String name) {
 		int rtn = 0;
-		String sql = "DELETE FROM " + TABLE_ID + " where " + COL_NAME + "=?";
 		log.info("Deleting item properties:" + name);
-		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+		try (PreparedStatement stmt = conn.prepareStatement(CLEAR_ITEM_SQL)) {
 			stmt.setString(1, name);
 			rtn = stmt.executeUpdate();
 		} catch (SQLException e) {
@@ -99,10 +116,8 @@ public class SQLiteDB implements DBInterface {
 
 	public int insertItemProperty(String name, String key, String val, boolean enabled) {
 		int rtn = 0;
-		String sql = "INSERT INTO " + TABLE_ID + "(" + COL_NAME + ", " + COL_KEY + ", " + COL_VAL + ", " + COL_ACTIVE
-				+ ") VALUES(?, ?, ?, ?)";
 		log.info("Adding item property:" + name + ":" + key + ":" + val);
-		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+		try (PreparedStatement stmt = conn.prepareStatement(INSERT_ITEM_PROPERTY_SQL)) {
 			stmt.setString(1, name);
 			stmt.setString(2, key);
 
@@ -127,10 +142,9 @@ public class SQLiteDB implements DBInterface {
 
 	public int setEnabledItem(String name, boolean isActive) {
 		int rtn = 0;
-		String sql = "UPDATE " + TABLE_ID + " SET " + COL_ACTIVE + "=? WHERE " + COL_NAME + "=?";
 
 		log.info("Updating item properties active flag:" + name + ":" + isActive);
-		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+		try (PreparedStatement stmt = conn.prepareStatement(SET_ITEM_ENABLED_SQL)) {
 			if (isActive)
 				stmt.setInt(1, 1);
 			else
@@ -171,11 +185,9 @@ public class SQLiteDB implements DBInterface {
 
 	public int updateItemProperty(String name, String key, String val, boolean enabled) {
 		int rtn = 0;
-		String sql = "UPDATE " + TABLE_ID + " SET " + COL_VAL + "=?, " + COL_ACTIVE + "=? WHERE " + COL_NAME + "=? AND "
-				+ COL_KEY + "=?";
 
 		log.info("Updating item property:" + name + ":" + key + ":" + val);
-		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+		try (PreparedStatement stmt = conn.prepareStatement(UPDATE_ITEM_PROPERTY_SQL)) {
 			if (val == null)
 				stmt.setNull(1, Types.VARCHAR);
 			else
@@ -202,10 +214,9 @@ public class SQLiteDB implements DBInterface {
 
 	public int renameItem(String oldName, String newName) {
 		int rtn = 0;
-		String sql = "UPDATE " + TABLE_ID + " SET " + COL_NAME + "=? WHERE " + COL_NAME + "=?";
 
 		log.info("Renaming item:" + oldName + " to " + newName);
-		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+		try (PreparedStatement stmt = conn.prepareStatement(RENAME_ITEM_SQL)) {
 			stmt.setString(1, newName);
 			stmt.setString(2, oldName);
 			rtn = stmt.executeUpdate();
@@ -219,9 +230,8 @@ public class SQLiteDB implements DBInterface {
 
 	public Map<String, String> getItemProperties(String name) {
 		Map<String, String> rtn = new HashMap<String, String>();
-		String sql = "SELECT " + COL_KEY + "," + COL_VAL + " FROM " + TABLE_ID + " WHERE " + COL_NAME + "=?";
 		log.info("Getting item properties:" + name);
-		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+		try (PreparedStatement stmt = conn.prepareStatement(GET_ITEM_PROPERTIES_SQL)) {
 			stmt.setString(1, name);
 			ResultSet rs = stmt.executeQuery();
 			// loop through the result set
@@ -237,10 +247,9 @@ public class SQLiteDB implements DBInterface {
 
 	public String getCheck(String bundleName) {
 		String rtn = null;
-		String sql = "SELECT " + COL_VAL + " FROM " + TABLE_ID + " WHERE " + COL_KEY + "='class'" + " AND " + COL_NAME
-				+ "='" + bundleName + "'";
 		log.info("Getting check:");
-		try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+		try (PreparedStatement stmt = conn.prepareStatement(GET_CHECK_SQL)) {
+			stmt.setString(1, bundleName);
 			ResultSet rs = stmt.executeQuery();
 			// loop through the result set
 			while (rs.next()) {
@@ -255,9 +264,9 @@ public class SQLiteDB implements DBInterface {
 
 	public Map<String, String> getChecks(boolean includeDisabled) {
 		Map<String, String> rtn = new HashMap<String, String>();
-		String sql = "SELECT " + COL_NAME + "," + COL_VAL + " FROM " + TABLE_ID + " WHERE " + COL_KEY + "='class'";
+		String sql = GET_CHECKS_SQL;
 		if (!includeDisabled) {
-			sql = sql + " AND " + COL_ACTIVE + "=1";
+			sql = GET_ACTIVE_CHECKS_SQL;
 		}
 		log.info("Getting checks:");
 		try (PreparedStatement stmt = conn.prepareStatement(sql)) {

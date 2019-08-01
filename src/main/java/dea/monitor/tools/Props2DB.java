@@ -29,6 +29,7 @@ public class Props2DB {
 			String dbPath = bundle.getString("db.path");
 			if (dbPath != null)
 				dbi = new SQLiteDB(dbPath);
+			log.warn("db.path:" + dbPath);
 			defaultBroadcastClass = bundle.getString("default.broadcast.class");
 		} catch (Exception e) {
 			log.warn("No db.path in checks.properties file. Using propfiles instead");
@@ -67,7 +68,7 @@ public class Props2DB {
 	 * [itemName].properties file. And with the className passed.
 	 * 
 	 * @param itemName
-	 * @param className to use for the "class" property
+	 * @param className to use for the "class" property if not null
 	 */
 	public int addAllPropsToDB(String itemName, String className) {
 		int cnt = 0;
@@ -75,8 +76,10 @@ public class Props2DB {
 			ResourceBundle itemBundle = ResourceBundle.getBundle(itemName);
 			if (itemBundle != null && itemBundle.getString("region") != null) {
 				cnt = dbi.clearItem(itemName);
-				log.info(itemName + ":class:" + className);
-				cnt += dbi.insertItemProperty(itemName, "class", className, true);
+				if (className != null) {
+					log.info(itemName + ":class:" + className);
+					cnt += dbi.insertItemProperty(itemName, "class", className, true);
+				}
 				for (String itemkey : itemBundle.keySet()) {
 					cnt += dbi.insertItemProperty(itemName, itemkey, itemBundle.getString(itemkey), true);
 				}
